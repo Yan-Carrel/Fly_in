@@ -1,5 +1,5 @@
 ENTRY_POINT = parser/parser.py
-VENV_BIN = venv/bin 
+VENV_BIN = venv/bin
 
 install:
 	python3 -m venv venv
@@ -7,7 +7,7 @@ install:
 	$(VENV_BIN)/pip install -r requirements.txt
 
 run:
-	venv/bin/python3 $(ENTRY_POINT)
+	$(VENV_BIN)/python3 $(ENTRY_POINT)
 
 debug:
 	python3 -m pdb $(ENTRY_POINT)
@@ -17,7 +17,7 @@ clean:
 
 lint:
 	$(VENV_BIN)/flake8 .
-	$(VENV_BIN)/mypy --warn-return-any--warn-unused-ignores --ignore-missing-imports --disallow-untyped-defs
+	$(VENV_BIN)/mypy --warn-return-any --warn-unused-ignores --ignore-missing-imports --disallow-untyped-defs\
 --check-untyped-defs
 
 lint-strict:

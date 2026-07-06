@@ -12,3 +12,4 @@ pydantic_core==2.46.4
 pyflakes==3.4.0
 typing-inspection==0.4.2
 typing_extensions==4.16.0
+webcolors==25.10.0
