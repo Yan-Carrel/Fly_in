@@ -7,7 +7,7 @@ class HubModel(BaseModel):
     name: str = Field(min_length=1)
     x: int = Field(...)
     y: int = Field(...)
-    metadata: Optional[list[str]] = Field(default=None, min_length=1)
+    metadata: Optional[dict[str, Any]] = Field(default=None)
 
     @model_validator(mode='after')
     def validade_hub(self) -> Self:
@@ -15,33 +15,26 @@ class HubModel(BaseModel):
         valid_zones = ["normal", "blocked", "restricted", "priority"]
 
         if self.metadata:
-            for data in self.metadata:
-                if "=" not in data:
-                    raise ValueError("Metadata item should be in 'key=value' format")
-
-                name, value = data.split("=", 1)
-                name = name.replace("[", "")
-                value = value.replace("]", "")
-                if name not in valid_metadatas:
+            for key, value in self.metadata.items():
+                if key not in valid_metadatas:
                     raise ValueError("zone, color and max_drones are the only valid metadata")
 
-                if name == "zone" and value not in valid_zones:
+                if key == "zone" and value not in valid_zones:
                     raise ValueError("Error: normal, blocked, restricted and priority are the only valid zones")
 
-                elif name == "color":
+                elif key == "color":
                     try:
                         webcolors.name_to_hex(value)
                     except ValueError as e:
                         raise ValueError(f"{value} is not a valid standard web color name")
 
-                elif name == "max_drones":
+                elif key == "max_drones":
                     try:
                         max_drones = int(value)
                     except Exception:
                         raise ValueError("Error: invalid max_drones value")
                     if max_drones <= 0:
                         raise ValueError("Error: max_drones can't be negative or equal to 0.")   
-
         return self
 
 
@@ -65,10 +58,22 @@ class ConnectionModel(BaseModel):
         return self
 
 
-# class Map(BaseModel):
-#     drone_count: int = Field(ge=1)
-#     start_hub = dict[str, Any]
-#     end_hub = 
+class MapModel(BaseModel):
+    drone_count: int
+    start_hub: HubModel
+    end_hub: HubModel
+    hubs: list[HubModel] = Field(...)
+    connections: list[ConnectionModel]
+
+    @model_validator(mode='after')
+    def validate_model(self) -> Self:
+        for connection in self.connections:
+            name1, name2 = connection.connection.split("-")
+            if not any(name1 == hub.name for hub in self.hubs):
+                raise ValueError(f"Hub with name '{name1}' is not recognized")
+            if not any(name2 == hub.name for hub in self.hubs):
+                raise ValueError(f"Hub with name '{name2}' is not recognized")
+        return self
 
 
 class MapParser:
@@ -76,6 +81,8 @@ class MapParser:
         self.drone_count = 0
         self.filename = filename
         self.connections = []
+        self.start_hub = None
+        self.end_hub = None
         self.hubs = []
 
     def parse(self) -> None:
@@ -101,21 +108,35 @@ class MapParser:
                 hubs.append({key:value})
 
         for hub in hubs:
-            _, value = list(hub.items())[0]
+            hub_type, value = list(hub.items())[0]
             parts = value.strip().split(" ")
             try:
                 name, x, y = parts[0:3]
             except Exception:
                 print("Error: invalid hub format. Usage: <name> <x> <y> <metadata>")
+                continue
 
+            metadata: dict[str, Any] = {}
             if len(parts) >= 4:
-                metadata = parts[3:]
+                metadata_list = parts[3:]
+                for meta in metadata_list:
+                    try:
+                        meta_key, meta_value = meta.replace("[", "").replace("]", "").split('=')
+                    except ValueError:
+                        print("Error: metadata should be in 'key=value' format")
+                        exit(1)
+                    metadata[meta_key] = meta_value
             elif len(parts) == 3:
                 metadata = None
 
             try:
-                self.hubs.append(HubModel(name=name, x=int(x), y=int(y), metadata=metadata))
-            except ValueError as e:
+                new_hub = HubModel(name=name, x=int(x), y=int(y), metadata=metadata)
+                self.hubs.append(new_hub)
+                if hub_type == "start_hub":
+                    self.start_hub = new_hub
+                elif hub_type == "end_hub":
+                    self.end_hub = new_hub
+            except ValidationError as e:
                 print(e.errors()[0]['msg'])
                 exit(1)
             
@@ -151,6 +172,18 @@ class MapParser:
             except ValueError as e:
                 print(e.errors()[0]['msg'])
                 exit(1)
+
+        try:
+            _map = MapModel(
+                drone_count = self.drone_count,
+                start_hub=self.start_hub,
+                end_hub=self.end_hub,
+                hubs=self.hubs,
+                connections=self.connections
+                )
+        except ValidationError as e:
+            print(e.errors()[0]['msg'])
+            exit(1)
 
 
 if __name__ == "__main__":
