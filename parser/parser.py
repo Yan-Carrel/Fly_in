@@ -1,79 +1,6 @@
-from typing import Any, Optional, Self
-import webcolors
-from pydantic import BaseModel, Field, ValidationError, model_validator
-
-
-class HubModel(BaseModel):
-    name: str = Field(min_length=1)
-    x: int = Field(...)
-    y: int = Field(...)
-    metadata: Optional[dict[str, Any]] = Field(default=None)
-
-    @model_validator(mode='after')
-    def validade_hub(self) -> Self:
-        valid_metadatas = ["zone", "color", "max_drones"]
-        valid_zones = ["normal", "blocked", "restricted", "priority"]
-
-        if self.metadata:
-            for key, value in self.metadata.items():
-                if key not in valid_metadatas:
-                    raise ValueError("zone, color and max_drones are the only valid metadata")
-
-                if key == "zone" and value not in valid_zones:
-                    raise ValueError("Error: normal, blocked, restricted and priority are the only valid zones")
-
-                elif key == "color":
-                    try:
-                        webcolors.name_to_hex(value)
-                    except ValueError as e:
-                        raise ValueError(f"{value} is not a valid standard web color name")
-
-                elif key == "max_drones":
-                    try:
-                        max_drones = int(value)
-                    except Exception:
-                        raise ValueError("Error: invalid max_drones value")
-                    if max_drones <= 0:
-                        raise ValueError("Error: max_drones can't be negative or equal to 0.")   
-        return self
-
-
-class ConnectionModel(BaseModel):
-    connection: str = Field(min_length=1)
-    metadata: Optional[int]= Field(default=None)
-
-    @model_validator(mode='after')
-    def validate_model(self) -> Self:
-        if "-" not in self.connection:
-            raise ValueError("Error: Invalid format. Usage: <name1>-<name2> <metadata>")
-        if self.metadata is not None and self.metadata <= 0:
-            raise ValueError("Error: Metadata 'max_link_capacity' must be a positive integer")
-
-        try:
-            name1, name2 = self.connection.split("-")
-        except Exception as e:
-            raise ValueError(f"Error invalid format: {e}")
-        if not name1 or not name2 or name1 == name2:
-           raise ValueError(f"Error: Invalid connection '{self.connection}'")
-        return self
-
-
-class MapModel(BaseModel):
-    drone_count: int
-    start_hub: HubModel
-    end_hub: HubModel
-    hubs: list[HubModel] = Field(...)
-    connections: list[ConnectionModel]
-
-    @model_validator(mode='after')
-    def validate_model(self) -> Self:
-        for connection in self.connections:
-            name1, name2 = connection.connection.split("-")
-            if not any(name1 == hub.name for hub in self.hubs):
-                raise ValueError(f"Hub with name '{name1}' is not recognized")
-            if not any(name2 == hub.name for hub in self.hubs):
-                raise ValueError(f"Hub with name '{name2}' is not recognized")
-        return self
+from parser.models import HubModel, ConnectionModel, MapModel
+from typing import Any, Optional
+from pydantic import ValidationError
 
 
 class MapParser:
@@ -85,7 +12,7 @@ class MapParser:
         self.end_hub = None
         self.hubs = []
 
-    def parse(self) -> None:
+    def parse(self) -> MapModel:
         try:
             with open(self.filename, "r") as file:
                 lines = file.read().splitlines()
@@ -107,6 +34,24 @@ class MapParser:
                 key, value = line.split(':')
                 hubs.append({key:value})
 
+        self.parse_hub(hubs)
+        self.parse_connections(connections)
+
+        try:
+            _map = MapModel(
+                drone_count = self.drone_count,
+                start_hub=self.start_hub,
+                end_hub=self.end_hub,
+                hubs=self.hubs,
+                connections=self.connections
+                )
+            return _map
+        except ValidationError as e:
+            print(e.errors()[0]['msg'])
+            exit(1)
+
+
+    def parse_hub(self, hubs) -> None:
         for hub in hubs:
             hub_type, value = list(hub.items())[0]
             parts = value.strip().split(" ")
@@ -139,7 +84,9 @@ class MapParser:
             except ValidationError as e:
                 print(e.errors()[0]['msg'])
                 exit(1)
-            
+
+    
+    def parse_connections(self, connections) -> None:
         for connection in connections:
             connec_parts = connection.strip().split(" ")
 
@@ -173,19 +120,3 @@ class MapParser:
                 print(e.errors()[0]['msg'])
                 exit(1)
 
-        try:
-            _map = MapModel(
-                drone_count = self.drone_count,
-                start_hub=self.start_hub,
-                end_hub=self.end_hub,
-                hubs=self.hubs,
-                connections=self.connections
-                )
-        except ValidationError as e:
-            print(e.errors()[0]['msg'])
-            exit(1)
-
-
-if __name__ == "__main__":
-    map_parser = MapParser("map.txt")
-    map_parser.parse()

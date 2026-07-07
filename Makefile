@@ -1,4 +1,3 @@
-ENTRY_POINT = parser/parser.py
 VENV_BIN = venv/bin
 
 install:
@@ -7,13 +6,15 @@ install:
 	$(VENV_BIN)/pip install -r requirements.txt
 
 run:
-	$(VENV_BIN)/python3 $(ENTRY_POINT)
+	$(VENV_BIN)/python3 fly_in.py
 
 debug:
-	python3 -m pdb $(ENTRY_POINT)
+	python3 -m pdb fly_in.py
 
 clean:
-	rm -rf __pycache__
+	rm -rf __pycache__ .mypy_cache .pytest_cache
+	find . -type d -name "__pycache__" -exec rm -rf {} + 2>/dev/null || true
+	find . -type f -name "*.pyc" -delete
 
 lint:
 	$(VENV_BIN)/flake8 .
