@@ -85,7 +85,7 @@ class MapParser:
                 print(e.errors()[0]['msg'])
                 exit(1)
 
-    
+
     def parse_connections(self, connections) -> None:
         for connection in connections:
             connec_parts = connection.strip().split(" ")
