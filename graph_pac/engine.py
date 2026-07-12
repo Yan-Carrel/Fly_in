@@ -27,3 +27,4 @@ class Engine:
     
     def render(self, pygame: "pygame") -> None:
         self.visual.draw_hubs(pygame, self.screen)
+        self.visual.draw_connections(pygame, self.screen)

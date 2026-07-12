@@ -31,6 +31,17 @@ class Visual:
             else:
                 color = "white"
             py_game.draw.circle(screen, color, (center_x, center_y), 3, 0)
+        
+    def draw_connections(self, py_game: "pygame", screen: "screen") -> None:
+        drawn_lines = []
+        for key in self.graph.connections:
+            start_pos = self.layout.hub_position(next(hub for hub in self.graph.hubs if hub.name == key))
+            for end_pos in self.graph.connections[key]:
+                target_pos = self.layout.hub_position(next(hub for hub in self.graph.hubs if hub.name == end_pos))
+                if sorted([start_pos, target_pos]) in drawn_lines:
+                    continue
+                py_game.draw.line(screen, "white", start_pos, target_pos, 1)
+                drawn_lines.append(sorted([start_pos, target_pos]))
 
 
 class Layout:
