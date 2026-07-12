@@ -1,100 +1,102 @@
-import pygame
-from pygame.locals import (QUIT)
+from parser import HubModel, ConnectionModel
+from .graph_cls import Graph
+import math
 
 
 class Visual:
-    def __init__(self, win_x: int, win_y: int, background_color: str, graph: "Graph", margin: int)  -> None:
+    def __init__(
+        self, graph: Graph,
+        target_min_gap: int,
+        margin: int,
+        ) -> None:
+        self.target_min_gap = target_min_gap
         self.graph = graph
-        self.connections = graph.connections
         self.margin = margin
-        self.map_x, self.map_y = self.map_size(margin)
-        self.offset = self.add_offset()
-        self.win_x, self.win_y = (win_x, win_y)
-        self.tile = self.tile_size()
-        self.background_color = background_color
-        self.running = True
-
-    def initialize_pygame(self) -> None:
-        pygame.init()
-        self.screen = pygame.display.set_mode([self.win_x, self.win_y])
+        self.win_width = 1080
+        self.win_height = 720
+        self.layout = Layout(
+            self.graph,
+            self.win_width,
+            self.win_height,
+            self.margin
+            )
     
-    def add_offset(self) -> None:
-        neg_x_values = min(self.graph.hubs, key=lambda hub: hub.x).x
-        neg_y_values = min(self.graph.hubs, key=lambda hub: hub.y).y
-        offset_x = 0
-        offset_y = 0
-
-        if neg_x_values >= 0:
-            offset_x = 0
-        else:
-            offset_x = neg_x_values * (-1)
-
-        if neg_y_values >= 0:
-            offset_y = 0
-        else:
-            offset_y = neg_y_values * (-1)
+    def draw_hubs(self, py_game: "pygame", screen: "screen") -> None:
+        scale = self.layout.compute_scale()
+        offset_x, offset_y = self.layout.offset()
 
         for hub in self.graph.hubs:
-            hub.x += offset_x
-            hub.y += offset_y
-
-    def run(self):
-        while self.running:
-            for event in pygame.event.get():
-                if event.type == pygame.QUIT:
-                    self.running = False
-
-            self.screen.fill(self.background_color)
-            self.draw_connections()
-            self.draw_hubs()
-            pygame.display.flip()
-        pygame.quit()
-
-    def map_size(self, margin: int) -> tuple[int, int]:
-        min_x = min(self.graph.hubs, key=lambda h: h.x).x
-        min_y = min(self.graph.hubs, key=lambda h: h.y).y
-        max_x = max(self.graph.hubs, key=lambda h: h.x).x
-        max_y = max(self.graph.hubs, key=lambda h: h.y).y
-
-        map_width = max_x - min_x
-        map_height = max_y - min_y
-
-        return (map_width, map_height)
-    
-    def tile_size(self) -> None:
-        usable_width = self.win_x
-        usable_height = self.win_y
-        tile_x = usable_width // self.map_x
-        tile_y = usable_height // self.map_y
-
-        return min(tile_x, tile_y)
-    
-    def draw_hubs(self) -> None:
-        for hub in self.graph.hubs:
+            center_x = (hub.x * scale) + offset_x
+            center_y = (hub.y * scale) + offset_y
             if "color" in hub.metadata:
                 color = hub.metadata["color"]
             else:
                 color = "white"
-            center_x, center_y = self.hub_position(hub.x, hub.y)
-            radius = max(1, self.tile // 3)
-            pygame.draw.circle(self.screen, color, (center_x, center_y), radius, 0)
+            py_game.draw.circle(screen, color, (center_x, center_y), 3, 0)
 
-    def draw_connections(self) -> None:
-        drawn_edges: set[tuple[str, str]] = set()
 
-        for name, neighbors in self.graph.connections.items():
-            start_hub = next(hub for hub in self.graph.hubs if hub.name == name)
-            start_pos = self.hub_position(start_hub.x, start_hub.y)
+class Layout:
+    def __init__(self, graph: Graph, win_width: int, win_height: int, margin: int) -> None:
+        self.graph = graph
+        self.win_width = win_width
+        self.win_height = win_height
+        self.margin = margin
+        self.scale = self.compute_scale()
+        self.offset_x, self.offset_y = self.offset()
 
-            for target in self.graph.connections[name]:
-                edge = tuple(sorted((name, target)))
-                if edge in drawn_edges:
-                    continue
+    def map_bounds(self) -> tuple[int, int, int, int]:
+        hubs = self.graph.hubs
+        min_x = min(hubs, key=lambda hub: hub.x).x
+        min_y = min(hubs, key=lambda hub: hub.y).y
+        max_x = max(hubs, key=lambda hub: hub.x).x
+        max_y = max(hubs, key=lambda hub: hub.y).y
 
-                target_hub = next(hub for hub in self.graph.hubs if hub.name == target)
-                target_pos = self.hub_position(target_hub.x, target_hub.y)
-                pygame.draw.line(self.screen, "white", start_pos, target_pos, 2)
-                drawn_edges.add(edge)
+        return (max_x, min_x, max_y, min_y)
 
-    def hub_position(self, x: int, y: int) -> tuple[int, int]:
-        return (x * self.tile, y * self.tile)
+    def canvas_size(self) -> tuple[int, int]:
+        return (
+            self.win_width - (self.margin * 2),
+            self.win_height - (self.margin * 2)
+            )
+
+    def offset(self) -> tuple[int, int]:
+        graph_width, graph_height = self.graph_size()
+        offset_x = (self.win_width - graph_width) / 2
+        offset_y = (self.win_height - graph_height) / 2
+
+        max_x, min_x, max_y, min_y = self.map_bounds()
+
+        if min_x > 0:
+            offset_x -= min_x * self.scale
+        elif min_x < 0:
+            offset_x -= min_x * self.scale
+        if min_y > 0:
+            offset_y -= min_y * self.scale
+        elif min_y < 0:
+            offset_y -= min_y * self.scale
+
+        return offset_x, offset_y
+
+    def compute_scale(self) -> None:
+        max_x, min_x, max_y, min_y = self.map_bounds()
+
+        scale =  min(
+            (self.win_width - self.margin) / (max_x - min_x),
+            (self.win_height - self.margin) / (max_y - min_y)
+            )
+
+        return scale
+
+    def graph_size(self) -> None:
+        max_x, min_x, max_y, min_y = self.map_bounds()
+        scale = self.compute_scale()
+
+        max_x *= scale
+        min_x *= scale
+        max_y *= scale
+        min_y *= scale
+
+        graph_width = max_x - min_x
+        graph_height = max_y - min_y
+
+        return graph_width, graph_height

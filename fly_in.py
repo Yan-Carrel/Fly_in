@@ -7,8 +7,9 @@ if __name__ == "__main__":
     map_parser = parser.MapParser("map.txt")
     
     graph = graph_pac.Graph(map_parser.parse())
-    visual = graph_pac.Visual(1080, 720, "black", graph, 200)
+    visual = graph_pac.Visual(graph, 80, 50)
+    engine = graph_pac.Engine("black", visual)
 
-    visual.initialize_pygame()
-    visual.run()
+    engine.initialize_pygame()
+    engine.run()
 
