@@ -22,12 +22,10 @@ class Visual:
             )
     
     def draw_hubs(self, py_game: "pygame", screen: "screen") -> None:
-        scale = self.layout.compute_scale()
-        offset_x, offset_y = self.layout.offset()
+        scale = self.layout.scale
 
         for hub in self.graph.hubs:
-            center_x = (hub.x * scale) + offset_x
-            center_y = (hub.y * scale) + offset_y
+            center_x, center_y = self.layout.hub_position(hub)
             if "color" in hub.metadata:
                 color = hub.metadata["color"]
             else:
@@ -66,23 +64,20 @@ class Layout:
 
         max_x, min_x, max_y, min_y = self.map_bounds()
 
-        if min_x > 0:
+        if min_x != 0:
             offset_x -= min_x * self.scale
-        elif min_x < 0:
-            offset_x -= min_x * self.scale
-        if min_y > 0:
-            offset_y -= min_y * self.scale
-        elif min_y < 0:
+        if min_y != 0:
             offset_y -= min_y * self.scale
 
         return offset_x, offset_y
 
     def compute_scale(self) -> None:
         max_x, min_x, max_y, min_y = self.map_bounds()
+        canvas_width, canvas_height = self.canvas_size()
 
         scale =  min(
-            (self.win_width - self.margin) / (max_x - min_x),
-            (self.win_height - self.margin) / (max_y - min_y)
+            canvas_width / (max_x - min_x),
+            canvas_height / (max_y - min_y)
             )
 
         return scale
@@ -91,12 +86,12 @@ class Layout:
         max_x, min_x, max_y, min_y = self.map_bounds()
         scale = self.compute_scale()
 
-        max_x *= scale
-        min_x *= scale
-        max_y *= scale
-        min_y *= scale
-
-        graph_width = max_x - min_x
-        graph_height = max_y - min_y
+        graph_width = (max_x - min_x) * scale
+        graph_height = (max_y - min_y) * scale
 
         return graph_width, graph_height
+    
+    def hub_position(self, hub: HubModel) -> tuple[int, int]:
+        x = hub.x * self.scale + self.offset_x
+        y = hub.y * self.scale + self.offset_y
+        return x, y
