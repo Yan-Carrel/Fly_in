@@ -1,6 +1,7 @@
-from parser import HubModel, ConnectionModel
+import pygame
+from typing import Optional
+from parser import HubModel
 from .graph_cls import Graph
-import math
 
 
 class Visual:
@@ -12,27 +13,49 @@ class Visual:
         self.target_min_gap = target_min_gap
         self.graph = graph
         self.margin = margin
-        self.win_width = 1080
-        self.win_height = 720
+        self.win_width = None
+        self.win_height = None
+        self.layout: Optional[Layout] = None
+        self.pygame: Optional[pygame] = None
+        self.pygame_font: Optional[pygame.font.SysFont] = None
+
+    def build_layout(self) -> None:
+        if self.win_width is None or self.win_height is None:
+            raise ValueError("Window size must be set before building the layout")
+
         self.layout = Layout(
             self.graph,
             self.win_width,
             self.win_height,
-            self.margin
-            )
+            self.margin,
+        )
     
-    def draw_hubs(self, py_game: "pygame", screen: "screen") -> None:
+    def draw_hubs(self, screen: "screen") -> None:
+        if self.layout is None:
+            raise ValueError("Layout has not been built")
+
         scale = self.layout.scale
 
         for hub in self.graph.hubs:
             center_x, center_y = self.layout.hub_position(hub)
+            circle_radius = 6
+
             if "color" in hub.metadata:
                 color = hub.metadata["color"]
             else:
                 color = "white"
-            py_game.draw.circle(screen, color, (center_x, center_y), 3, 0)
-        
-    def draw_connections(self, py_game: "pygame", screen: "screen") -> None:
+            self.pygame.draw.circle(screen, color, (center_x, center_y), circle_radius, 0)
+
+            added_labels = []
+            text_surface = self.pygame_font.render(hub.name, True, "white")
+            text_rect = text_surface.get_rect()
+            text_rect.midbottom = (center_x, center_y - circle_radius)
+            screen.blit(text_surface, text_rect)
+
+    def draw_connections(self, screen: "screen") -> None:
+        if self.layout is None:
+            raise ValueError("Layout has not been built")
+
         drawn_lines = []
         for key in self.graph.connections:
             start_pos = self.layout.hub_position(next(hub for hub in self.graph.hubs if hub.name == key))
@@ -40,7 +63,7 @@ class Visual:
                 target_pos = self.layout.hub_position(next(hub for hub in self.graph.hubs if hub.name == end_pos))
                 if sorted([start_pos, target_pos]) in drawn_lines:
                     continue
-                py_game.draw.line(screen, "white", start_pos, target_pos, 1)
+                self.pygame.draw.line(screen, "white", start_pos, target_pos, 1)
                 drawn_lines.append(sorted([start_pos, target_pos]))
 
 
@@ -86,12 +109,16 @@ class Layout:
         max_x, min_x, max_y, min_y = self.map_bounds()
         canvas_width, canvas_height = self.canvas_size()
 
-        scale =  min(
-            canvas_width / (max_x - min_x),
-            canvas_height / (max_y - min_y)
-            )
+        try:
+            scale_a = canvas_width / (max_x - min_x)
+        except ZeroDivisionError:
+            scale_a = canvas_width
+        try:
+            scale_b = canvas_height / (max_y - min_y)
+        except ZeroDivisionError:
+            scale_b = canvas_height
 
-        return scale
+        return min(scale_a, scale_b)
 
     def graph_size(self) -> None:
         max_x, min_x, max_y, min_y = self.map_bounds()
