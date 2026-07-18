@@ -1,5 +1,8 @@
 import pygame
-from pygame.locals import (QUIT)
+from pygame.locals import (
+    QUIT,
+    K_ESCAPE
+    )
 from .graph_cls import Graph
 from .visual import Visual
 
@@ -12,7 +15,6 @@ class Engine:
 
     def initialize_pygame(self) -> None:
         pygame.init()
-        # pygame.font.init()
         monitor_info = pygame.display.Info()
         self.visual.win_width = monitor_info.current_w
         self.visual.win_height = monitor_info.current_h
@@ -26,6 +28,9 @@ class Engine:
             for event in pygame.event.get():
                 if event.type == pygame.QUIT:
                     self.running = False
+                elif event.type == pygame.KEYDOWN:
+                    if pygame.K_ESCAPE:
+                        self.running = False
 
             self.screen.fill(self.background_color)
             self.render()
