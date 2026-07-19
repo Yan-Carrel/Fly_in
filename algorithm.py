@@ -56,5 +56,5 @@ class Solver:
                 pass
             else:
                 result.append(neighbor)
-        
+
         return result

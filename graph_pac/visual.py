@@ -42,6 +42,8 @@ class Visual:
 
             if "color" in hub.metadata:
                 color = hub.metadata["color"]
+                if color == "rainbow":
+                    color = (255, 127, 80)
             else:
                 color = "white"
             self.pygame.draw.circle(screen, color, (center_x, center_y), circle_radius, 0)

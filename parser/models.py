@@ -26,7 +26,8 @@ class HubModel(BaseModel):
                     try:
                         webcolors.name_to_hex(value)
                     except ValueError as e:
-                        raise ValueError(f"{value} is not a valid standard web color name")
+                        if value != "rainbow":
+                            raise ValueError(f"{value} is not a valid standard web color name")
 
                 elif key == "max_drones":
                     try:
