@@ -1,6 +1,7 @@
 from parser.models import HubModel, ConnectionModel, MapModel
 from typing import Any, Optional
 from pydantic import ValidationError
+import sys
 
 
 class MapParser:
@@ -48,7 +49,7 @@ class MapParser:
             return _map
         except ValidationError as e:
             print(e.errors()[0]['msg'])
-            exit(1)
+            sys.exit(1)
 
 
     def parse_hub(self, hubs) -> None:
@@ -69,7 +70,7 @@ class MapParser:
                         meta_key, meta_value = meta.replace("[", "").replace("]", "").split('=')
                     except ValueError:
                         print("Error: metadata should be in 'key=value' format")
-                        exit(1)
+                        sys.exit(1)
                     metadata[meta_key] = meta_value
             elif len(parts) == 3:
                 metadata = None
@@ -83,7 +84,7 @@ class MapParser:
                     self.end_hub = new_hub
             except ValidationError as e:
                 print(e.errors()[0]['msg'])
-                exit(1)
+                sys.exit(1)
 
 
     def parse_connections(self, connections) -> None:
@@ -97,26 +98,26 @@ class MapParser:
 
                 if "=" not in raw_metadata:
                     print(f"Error: Invalid metadata format '{raw_metadata}'")
-                    exit(1)
+                    sys.exit(1)
 
                 try:
                     key, value = raw_metadata.split("=")
                 except Exception:
                     print(f"Error: Invalid metadata format for {connec_parts[0]}")
-                    exit(1)
+                    sys.exit(1)
 
                 try:
                     connec_metadata = int(value)
                 except ValueError:
                     print(f"Error: max_link_capacity must be a positive integer for {connec_parts[0]}")
-                    exit(1)
+                    sys.exit(1)
             else:
                 print(f"Error: invalid connection format '{connection}'")
-                exit(1)
+                sys.exit(1)
 
             try:
                 self.connections.append(ConnectionModel(connection=connec_parts[0], metadata=connec_metadata))
             except ValueError as e:
                 print(e.errors()[0]['msg'])
-                exit(1)
+                sys.exit(1)
 

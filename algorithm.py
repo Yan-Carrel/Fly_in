@@ -6,6 +6,7 @@ from parser import HubModel
 class Solver:
     def __init__(self, graph: Graph) -> None:
         self.graph = graph
+        self.paths = []
 
     def find_path(self, start: HubModel) -> list[str]:
         goal = getattr(self.graph, "end_hub", None)
@@ -56,5 +57,18 @@ class Solver:
                 pass
             else:
                 result.append(neighbor)
+
+        return result
+    
+    def get_all_paths(self) -> None:
+        pass
+
+    def get_junctions(self) -> list[str]:
+        result = []
+        for hub in self.graph.hubs:
+            connections = self.graph.connections.get(hub.name, []) 
+
+            if len(connections) > 1: 
+                result.append(hub.name)
 
         return result
