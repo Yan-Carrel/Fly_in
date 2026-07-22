@@ -4,25 +4,24 @@ import parser
 import graph_pac
 import webcolors
 from algorithm import Solver
+from route import Route
 
 
 if __name__ == "__main__":
     load_dotenv()
     maps = os.getenv("MAPS").split(",")
-    map_parser = parser.MapParser(f"maps/{maps[0]}")
+    map_parser = parser.MapParser(f"maps/{maps[9]}")
 
     graph = graph_pac.Graph(map_parser.parse())
     visual = graph_pac.Visual(graph, 80, 50)
     engine = graph_pac.Engine("black", visual)
     solver = Solver(graph)
+    route = Route(graph, solver.get_all_paths())
 
-    # start = next(hub for hub in graph.hubs if hub.name == "start")
-    # print(solver.find_path(start, {"maze_b2"}))
+    paths = solver.get_all_paths()
 
-    # solver.get_all_paths()
-
-    for path in solver.get_all_paths():
-        print(path)
+    for i in range(1, map_parser.drone_count + 1):
+        print(route.best_path(f"D{i}", paths))
 
     engine.initialize_pygame()
     engine.run()

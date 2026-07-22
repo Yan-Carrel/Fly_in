@@ -5,6 +5,7 @@ class Graph:
     def __init__(self, _map):
         self.hubs = _map.hubs
         self.connections = {}
+        self.connection_capacities = {}
         self.build_connections(_map)
 
     def build_connections(self, _map: MapModel) -> dict:
@@ -17,6 +18,7 @@ class Graph:
             if name2 not in self.connections[name1]:
                 self.connections[name1].append(name2)
                 # self.connections[name2].append(name1)
+            self.connection_capacities[(name1, name2)] = connection.metadata
 
-    def get_hub(name: str) ->  HubModel:
+    def get_hub(self, name: str) ->  HubModel:
         return next(hub for hub in self.hubs if hub.name == name)
