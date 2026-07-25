@@ -6,6 +6,8 @@ import webcolors
 from algorithm import Solver
 from route import Route
 
+from parser import HubModel
+
 
 if __name__ == "__main__":
     load_dotenv()
@@ -16,12 +18,12 @@ if __name__ == "__main__":
     visual = graph_pac.Visual(graph, 80, 50)
     engine = graph_pac.Engine("black", visual)
     solver = Solver(graph)
-    route = Route(graph, solver.get_all_paths())
+    route = Route(graph, solver.get_all_paths(), map_parser.drone_count)
 
     paths = solver.get_all_paths()
-
+    
     for i in range(1, map_parser.drone_count + 1):
-        print(route.best_path(f"D{i}", paths))
+        route.best_path(f"D{i}", paths)
 
     engine.initialize_pygame()
     engine.run()

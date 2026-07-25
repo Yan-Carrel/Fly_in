@@ -1,12 +1,17 @@
 from graph_pac import Graph
 from parser import HubModel
+import copy
 
 
 class Route:
-    def __init__(self, graph: Graph, paths: list[list[str]]) -> None:
+    def __init__(self, graph: Graph, paths: list[list[str]], drones_count: int) -> None:
         self.graph = graph
         self.paths = paths
-        self.drones_path: [tuple, list[str]] = []
+        self.drones_path: list[str] = []
+        self.hub_states = {}
+        self.link_states = {}
+        self.hub_states[0] = {"start": drones_count}
+
 
     def convert_to_int(self, value: object) -> int:
         if value is None:
@@ -21,15 +26,30 @@ class Route:
         return 100
 
     def compute_route(self, path: list[str]) -> list[str]:
-        drones_paths = [tup[1] for tup in self.drones_path]
-        result_path = path.copy()
+        result_path = [path[0]]
+        hub_states = copy.deepcopy(self.hub_states)
+        link_states = copy.deepcopy(self.link_states)
 
-        for t in range(1, len(result_path)):
+        turn = 1
+        i = 1
 
-            current_hub = self.graph.get_hub(result_path[t])
-            previous_hub = self.graph.get_hub(path[t - 1])
+        while i < len(path):
+            current_hub = self.graph.get_hub(path[i])
+            previous_hub = self.graph.get_hub(path[i - 1])
 
-            drones_in_hub = int(self.count_drones_in_hub(drones_paths, current_hub, t))
+            drones_in_hub = hub_states.get(turn, None)
+            if not drones_in_hub:
+                hub_states[turn] = {}
+                hub_states[turn][current_hub.name] = 0
+
+            link_state = link_states.get(turn, None)
+            if not link_state:
+                link_states[turn] = {}
+                link_states[turn][(previous_hub.name, current_hub.name)] = 0
+
+            link_state = link_states[turn].get((previous_hub.name, current_hub.name), 0)
+            drones_in_hub = hub_states[turn].get(current_hub.name, 0)
+
             max_drones = self.convert_to_int(current_hub.metadata.get("max_drones", 100))
             if previous_hub:
                 max_link_capacity = self.graph.connection_capacities.get((previous_hub.name, current_hub.name), 100)
@@ -37,34 +57,44 @@ class Route:
             else:
                 max_link_capacity = 100
 
-            if (
-                drones_in_hub + 1 > max_drones or
-                    drones_in_hub + 1 > max_link_capacity):
-                result_path.insert(t, "")
+            full = (max_drones < drones_in_hub + 1
+            or max_link_capacity < link_state + 1)
 
-        self.drones_path.append(result_path)
-        return result_path
+            if not full:
+                hub_states[turn][current_hub.name] = drones_in_hub + 1
+                link_states[turn][(previous_hub.name, current_hub.name)] = link_state + 1
+                result_path.append(current_hub.name)
+                i += 1
+            else:
+                result_path.append("")
+                if previous_hub.name not in hub_states[turn - 1]:
+                    hub_states[turn - 1][previous_hub.name] = 0
 
-    def count_drones_in_hub(self, paths: list[list[str]], hub: HubModel, i: int) -> int:
-        count = 0
-        for path in paths:
-            if i < len(path) and path[i] == hub.name:
-                count += 1
-        return count
+                hub_states[turn - 1][previous_hub.name] -= 1
+    
+            turn += 1
+
+        return hub_states, link_states, result_path
     
     def best_path(self, drone: str, paths: list[list[str]]) -> list[str]:
         results = []
-        for path in paths:
-            results.append(self.compute_route(path))
-        best_path = min(results, key=lambda p: self.get_path_cost(p))
-        self.drones_path.append((drone, best_path))
-        return best_path
+        for i in range(len(paths.copy())):
+            results.append(self.compute_route(paths[i]))
+        
+        tup_results = []
 
+        best_path = min(results, key=lambda p: self.get_path_cost(p[2]))
+
+        self.drones_path.append(best_path[2])
+        self.hub_states = best_path[0]
+        self.link_states = best_path[1]
+        return best_path[-1]
 
     def get_path_cost(self, path: list[str]) -> int:
         cost = 0
         for step in path:
             if not step:
+                cost += 1
                 continue
             zone = self.graph.get_hub(step).metadata.get("zone")
             if zone == "restricted":
