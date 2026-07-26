@@ -46,8 +46,8 @@ class Route:
             if not link_state:
                 link_states[turn] = {}
                 link_states[turn][(previous_hub.name, current_hub.name)] = 0
-
             link_state = link_states[turn].get((previous_hub.name, current_hub.name), 0)
+
             drones_in_hub = hub_states[turn].get(current_hub.name, 0)
 
             max_drones = self.convert_to_int(current_hub.metadata.get("max_drones", 100))
@@ -89,6 +89,22 @@ class Route:
         self.hub_states = best_path[0]
         self.link_states = best_path[1]
         return best_path[-1]
+    
+    def formatted_routes(self) -> list[str]:
+        turns = len(max(self.drones_path, key=len))
+        drones_count = len(self.drones_path)
+        drones_path_output: dict[int, list[str]] = {}
+
+        for turn in range(1, turns):
+            for i in range(drones_count):
+                if turn < len(self.drones_path[i]) and self.drones_path[i][turn]:
+                    try:
+                        drones_path_output[turn].append(f"D{i + 1}-{self.drones_path[i][turn]}")
+                    except KeyError:
+                        drones_path_output[turn] = []
+                        drones_path_output[turn].append(f"D{i + 1}-{self.drones_path[i][turn]}")
+
+        return drones_path_output
 
     def get_path_cost(self, path: list[str]) -> int:
         cost = 0
