@@ -15,6 +15,10 @@ class Engine:
             self.background_color = (255, 127, 80)
         self.running = True
         self.visual = visual
+        self.frame = 0
+        self.previous_frame = 0
+        self.frames_per_turn = 300
+        self.turn = 0
 
     def initialize_pygame(self) -> None:
         pygame.init()
@@ -33,8 +37,11 @@ class Engine:
             self.screen = pygame.display.set_mode((monitor_info.current_w, monitor_info.current_h), pygame.FULLSCREEN)
         self.visual.pygame = pygame
         self.visual.pygame_font = self.visual.pygame.font.SysFont("None", 20)
+        self.drone_img = self.visual.pygame.image.load("drone.png")
 
     def run(self):
+        previous_frame = 0
+        frame = 0
         while self.running:
             for event in pygame.event.get():
                 if event.type == pygame.QUIT:
@@ -42,6 +49,8 @@ class Engine:
                 elif event.type == pygame.KEYDOWN:
                     if pygame.K_ESCAPE:
                         self.running = False
+
+            self.frame += 1
 
             self.screen.fill(self.background_color)
             self.render()
@@ -51,3 +60,9 @@ class Engine:
     def render(self) -> None:
         self.visual.draw_hubs(self.screen)
         self.visual.draw_connections(self.screen)
+        if self.frame == self.previous_frame + self.frames_per_turn:
+            self.previous_frame = self.frame
+            self.turn += 1
+        if self.turn >= 1:
+            self.visual.draw_drones(self.turn)
+        # self.visual.draw_drone((50, 50), self.screen, self.visual.drone_img)

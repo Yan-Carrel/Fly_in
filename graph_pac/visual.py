@@ -18,6 +18,9 @@ class Visual:
         self.layout: Optional[Layout] = None
         self.pygame: Optional[pygame] = None
         self.pygame_font: Optional[pygame.font.SysFont] = None
+        self.formatted_routes: Optional[list[str]] = None
+        self.drone_count = 0
+        self.drone_position: dict[int, tuple[int, int]] = {}
 
     def build_layout(self) -> None:
         if self.win_width is None or self.win_height is None:
@@ -53,6 +56,21 @@ class Visual:
             text_rect = text_surface.get_rect()
             text_rect.midbottom = (center_x, center_y - circle_radius)
             screen.blit(text_surface, text_rect)
+    
+    def draw_drones(self, turn: int) -> None:
+        from graph_pac.graph_cls import get_hub
+        turn_moves = self.formatted_routes[turn]
+
+        for i in range(1, len(turn_moves) + 1):
+            target_hub = get_hub(turn_moves[i].split("-")[1])
+            current_position = drone_position[i]
+            target_position = (target_hub.x, target_hub.y)
+
+        print(turn_moves)
+        exit(1)
+
+    def draw_drone(self, pos: tuple[int, int], size: tuple[int, int], screen: "screen", surface) -> None:
+        screen.blit(surface, pos)
 
     def draw_connections(self, screen: "screen") -> None:
         if self.layout is None:
