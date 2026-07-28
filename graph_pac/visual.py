@@ -21,6 +21,8 @@ class Visual:
         self.formatted_routes: Optional[list[str]] = None
         self.drone_count = 0
         self.drone_position: dict[int, tuple[int, int]] = {}
+        self.drone_t: dict[int, tuple[int, int]] = {}
+        self.drone_target: dict[int, tuple[int, int]] = {}
 
     def build_layout(self) -> None:
         if self.win_width is None or self.win_height is None:
@@ -32,7 +34,7 @@ class Visual:
             self.win_height,
             self.margin,
         )
-    
+
     def draw_hubs(self, screen: "screen") -> None:
         if self.layout is None:
             raise ValueError("Layout has not been built")
@@ -40,7 +42,7 @@ class Visual:
         scale = self.layout.scale
 
         for hub in self.graph.hubs:
-            center_x, center_y = self.layout.hub_position(hub)
+            center_x, center_y = self.layout.position((hub.x, hub.y))
             circle_radius = 6
 
             if "color" in hub.metadata:
@@ -56,18 +58,27 @@ class Visual:
             text_rect = text_surface.get_rect()
             text_rect.midbottom = (center_x, center_y - circle_radius)
             screen.blit(text_surface, text_rect)
-    
-    def draw_drones(self, turn: int) -> None:
-        from graph_pac.graph_cls import get_hub
+
+    def draw_drones(self, screen, surface, turn: int, frames_per_turn: int, previous_frame: int, frame: int) -> None:
         turn_moves = self.formatted_routes[turn]
+        elapsed = frame - previous_frame
+        t = min(elapsed / frames_per_turn, 1.0)
 
-        for i in range(1, len(turn_moves) + 1):
-            target_hub = get_hub(turn_moves[i].split("-")[1])
-            current_position = drone_position[i]
-            target_position = (target_hub.x, target_hub.y)
+        for i in range(1, self.drone_count + 1):
+            next_move = next((move for move in turn_moves if f"D{i}"== move.split("-")[0]), None)
 
-        print(turn_moves)
-        exit(1)
+            if next_move:
+                target_hub = self.graph.get_hub(next_move.split("-")[1])
+                self.drone_target[i] = target_hub
+            else:
+                target_hub = self.drone_target[i]
+
+            target_position = self.layout.position((target_hub.x, target_hub.y))
+
+            x = self.drone_position[i][0] + t * (target_position[0] - self.drone_position[i][0])
+            y = self.drone_position[i][1] + t * (target_position[1] - self.drone_position[i][1])
+
+            self.draw_drone((x, y), (20, 20), screen, surface)
 
     def draw_drone(self, pos: tuple[int, int], size: tuple[int, int], screen: "screen", surface) -> None:
         screen.blit(surface, pos)
@@ -78,9 +89,9 @@ class Visual:
 
         drawn_lines = []
         for key in self.graph.connections:
-            start_pos = self.layout.hub_position(next(hub for hub in self.graph.hubs if hub.name == key))
+            start_pos = self.layout.position(next((hub.x, hub.y) for hub in self.graph.hubs if hub.name == key))
             for end_pos in self.graph.connections[key]:
-                target_pos = self.layout.hub_position(next(hub for hub in self.graph.hubs if hub.name == end_pos))
+                target_pos = self.layout.position(next((hub.x, hub.y) for hub in self.graph.hubs if hub.name == end_pos))
                 if sorted([start_pos, target_pos]) in drawn_lines:
                     continue
                 self.pygame.draw.line(screen, "white", start_pos, target_pos, 1)
@@ -149,7 +160,7 @@ class Layout:
 
         return graph_width, graph_height
     
-    def hub_position(self, hub: HubModel) -> tuple[int, int]:
-        x = hub.x * self.scale + self.offset_x
-        y = hub.y * self.scale + self.offset_y
+    def position(self, pos: tuple[int, int]) -> tuple[float, float]:
+        x = pos[0] * self.scale + self.offset_x
+        y = pos[1] * self.scale + self.offset_y
         return x, y

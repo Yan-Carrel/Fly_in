@@ -18,7 +18,7 @@ class Engine:
         self.frame = 0
         self.previous_frame = 0
         self.frames_per_turn = 300
-        self.turn = 0
+        self.turn = 1
 
     def initialize_pygame(self) -> None:
         pygame.init()
@@ -35,9 +35,18 @@ class Engine:
 
             self.visual.build_layout()
             self.screen = pygame.display.set_mode((monitor_info.current_w, monitor_info.current_h), pygame.FULLSCREEN)
+
+        for i in range(self.visual.drone_count + 1):
+            start_hub = self.visual.graph.get_hub("start")
+            self.visual.drone_position[i] = self.visual.layout.position((start_hub.x, start_hub.y))
+            self.visual.drone_t[i] = 0
+            self.visual.drone_target[i] = self.visual.graph.get_hub("start")
+
         self.visual.pygame = pygame
         self.visual.pygame_font = self.visual.pygame.font.SysFont("None", 20)
         self.drone_img = self.visual.pygame.image.load("drone.png")
+        self.small_img = pygame.transform.scale(self.drone_img, (20, 20))
+
 
     def run(self):
         previous_frame = 0
@@ -60,9 +69,15 @@ class Engine:
     def render(self) -> None:
         self.visual.draw_hubs(self.screen)
         self.visual.draw_connections(self.screen)
+
         if self.frame == self.previous_frame + self.frames_per_turn:
-            self.previous_frame = self.frame
-            self.turn += 1
-        if self.turn >= 1:
-            self.visual.draw_drones(self.turn)
-        # self.visual.draw_drone((50, 50), self.screen, self.visual.drone_img)
+            if self.turn < len(self.visual.formatted_routes):
+                self.previous_frame = self.frame
+                self.turn += 1
+                for i in range(1, self.visual.drone_count + 1):
+                    self.visual.drone_t[i] = 0
+                    self.visual.drone_position[i] = self.visual.layout.position(
+                        (self.visual.drone_target[i].x, self.visual.drone_target[i].y)
+                    )
+
+        self.visual.draw_drones(self.screen, self.small_img, self.turn, self.frames_per_turn, self.previous_frame, self.frame)
