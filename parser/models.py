@@ -15,6 +15,8 @@ class HubModel(BaseModel):
         valid_zones = ["normal", "blocked", "restricted", "priority"]
 
         if self.metadata:
+            if "max_drones" not in self.metadata:
+                    self.metadata["max_drones"] = 1
             for key, value in self.metadata.items():
                 if key not in valid_metadatas:
                     raise ValueError("zone, color and max_drones are the only valid metadata")
@@ -35,13 +37,15 @@ class HubModel(BaseModel):
                     except Exception:
                         raise ValueError("Error: invalid max_drones value")
                     if max_drones <= 0:
-                        raise ValueError("Error: max_drones can't be negative or equal to 0.")   
+                        raise ValueError("Error: max_drones can't be negative or equal to 0.")
+        else:
+            self.metadata["max_drones"] = 1
         return self
 
 
 class ConnectionModel(BaseModel):
     connection: str = Field(min_length=1)
-    metadata: Optional[int]= Field(default=None)
+    metadata: Optional[int]= Field(default=1)
 
     @model_validator(mode='after')
     def validate_model(self) -> Self:

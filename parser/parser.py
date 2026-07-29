@@ -92,7 +92,7 @@ class MapParser:
             connec_parts = connection.strip().split(" ")
 
             if len(connec_parts) == 1:
-                connec_metadata = None
+                connec_metadata = 1
             elif len(connec_parts) == 2:
                 raw_metadata = connec_parts[1].replace("[", "").replace("]", "")
 
