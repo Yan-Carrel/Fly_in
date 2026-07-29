@@ -51,7 +51,6 @@ class MapParser:
             print(e.errors()[0]['msg'])
             sys.exit(1)
 
-
     def parse_hub(self, hubs) -> None:
         for hub in hubs:
             hub_type, value = list(hub.items())[0]
