@@ -23,6 +23,9 @@ class Visual:
         self.drone_position: dict[int, tuple[int, int]] = {}
         self.drone_t: dict[int, tuple[int, int]] = {}
         self.drone_target: dict[int, tuple[int, int]] = {}
+        self.drone_move_duration: dict[int, int] = {}
+        self.drone_finished_move: dict[int, int] = {}
+        self.drone_turns_elapsed: dict[int, int] = {}
 
     def build_layout(self) -> None:
         if self.win_width is None or self.win_height is None:
@@ -34,6 +37,12 @@ class Visual:
             self.win_height,
             self.margin,
         )
+    
+    def simulation_text(self, turn: int, screen) -> None:
+        text_surface = self.pygame_font.render(f"Turns: {turn}", True, "white")
+        text_rect = text_surface.get_rect()
+        text_rect.midbottom = (50, 50)
+        screen.blit(text_surface, text_rect)
 
     def draw_hubs(self, screen: "screen") -> None:
         if self.layout is None:
@@ -62,23 +71,28 @@ class Visual:
     def draw_drones(self, screen, surface, turn: int, frames_per_turn: int, previous_frame: int, frame: int) -> None:
         turn_moves = self.formatted_routes[turn]
         elapsed = frame - previous_frame
-        t = min(elapsed / frames_per_turn, 1.0)
 
         for i in range(1, self.drone_count + 1):
-            next_move = next((move for move in turn_moves if f"D{i}"== move.split("-")[0]), None)
+            if self.drone_finished_move[i]:
+                next_move = next((move for move in turn_moves if f"D{i}" == move.split("-")[0]), None)
+                if next_move:
+                    parts = next_move.split("-")
+                    self.drone_target[i] = self.graph.get_hub(parts[-1])
+                    self.drone_move_duration[i] = 2 if len(parts) > 2 else 1
+                    self.drone_turns_elapsed[i] = 0
+                    self.drone_finished_move[i] = False
 
-            if next_move:
-                target_hub = self.graph.get_hub(next_move.split("-")[1])
-                self.drone_target[i] = target_hub
-            else:
-                target_hub = self.drone_target[i]
+            target_hub = self.drone_target[i]
+            duration = self.drone_move_duration[i]
+            total_elapsed = self.drone_turns_elapsed[i] * frames_per_turn + elapsed
+            self.drone_t[i] = min(total_elapsed / (frames_per_turn * duration), 1.0)
 
             target_position = self.layout.position((target_hub.x, target_hub.y))
-
-            x = self.drone_position[i][0] + t * (target_position[0] - self.drone_position[i][0])
-            y = self.drone_position[i][1] + t * (target_position[1] - self.drone_position[i][1])
+            x = self.drone_position[i][0] + self.drone_t[i] * (target_position[0] - self.drone_position[i][0])
+            y = self.drone_position[i][1] + self.drone_t[i] * (target_position[1] - self.drone_position[i][1])
 
             self.draw_drone((x, y), (20, 20), screen, surface)
+            self.simulation_text(turn, screen)
 
     def draw_drone(self, pos: tuple[int, int], size: tuple[int, int], screen: "screen", surface) -> None:
         screen.blit(surface, pos)

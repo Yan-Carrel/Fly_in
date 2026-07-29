@@ -40,7 +40,10 @@ class Engine:
             start_hub = self.visual.graph.get_hub("start")
             self.visual.drone_position[i] = self.visual.layout.position((start_hub.x, start_hub.y))
             self.visual.drone_t[i] = 0
-            self.visual.drone_target[i] = self.visual.graph.get_hub("start")
+            self.visual.drone_target[i] = start_hub
+            self.visual.drone_move_duration[i] = 1
+            self.visual.drone_finished_move[i] = True
+            self.visual.drone_turns_elapsed[i] = 0
 
         self.visual.pygame = pygame
         self.visual.pygame_font = self.visual.pygame.font.SysFont("None", 20)
@@ -71,13 +74,18 @@ class Engine:
         self.visual.draw_connections(self.screen)
 
         if self.frame == self.previous_frame + self.frames_per_turn:
+            self.previous_frame = self.frame
+
+            for i in range(1, self.visual.drone_count + 1):
+                if not self.visual.drone_finished_move[i]:
+                    self.visual.drone_turns_elapsed[i] += 1
+                    if self.visual.drone_turns_elapsed[i] >= self.visual.drone_move_duration[i]:
+                        self.visual.drone_finished_move[i] = True
+                        target_hub = self.visual.drone_target[i]
+                        self.visual.drone_position[i] = self.visual.layout.position((target_hub.x, target_hub.y))
+
+            
             if self.turn < len(self.visual.formatted_routes):
-                self.previous_frame = self.frame
                 self.turn += 1
-                for i in range(1, self.visual.drone_count + 1):
-                    self.visual.drone_t[i] = 0
-                    self.visual.drone_position[i] = self.visual.layout.position(
-                        (self.visual.drone_target[i].x, self.visual.drone_target[i].y)
-                    )
 
         self.visual.draw_drones(self.screen, self.small_img, self.turn, self.frames_per_turn, self.previous_frame, self.frame)

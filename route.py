@@ -75,12 +75,12 @@ class Route:
             turn += 1
 
         return hub_states, link_states, result_path
-    
+
     def best_path(self, drone: str, paths: list[list[str]]) -> list[str]:
         results = []
         for i in range(len(paths.copy())):
             results.append(self.compute_route(paths[i]))
-        
+
         tup_results = []
 
         best_path = min(results, key=lambda p: self.get_path_cost(p[2]))
@@ -89,7 +89,7 @@ class Route:
         self.hub_states = best_path[0]
         self.link_states = best_path[1]
         return best_path[-1]
-    
+
     def formatted_routes(self) -> list[str]:
         turns = len(max(self.drones_path, key=len))
         drones_count = len(self.drones_path)
@@ -98,11 +98,23 @@ class Route:
         for turn in range(1, turns):
             for i in range(drones_count):
                 if turn < len(self.drones_path[i]) and self.drones_path[i][turn]:
-                    try:
-                        drones_path_output[turn].append(f"D{i + 1}-{self.drones_path[i][turn]}")
-                    except KeyError:
-                        drones_path_output[turn] = []
-                        drones_path_output[turn].append(f"D{i + 1}-{self.drones_path[i][turn]}")
+                    # try:
+                    connections = self.graph.connections
+                    destination = self.drones_path[i][turn]
+                    metadata = next((hub.metadata for hub in self.graph.hubs if hub.name == destination), None)
+                    if metadata and "zone" in metadata and metadata["zone"] == "restricted":
+                        start = next((key for key, value in self.graph.connections.items() if destination in self.graph.connections[key]), next)
+                        try:
+                            drones_path_output[turn].append(f"D{i + 1}-{start}-{destination}")
+                        except KeyError:
+                            drones_path_output[turn] = []
+                            drones_path_output[turn].append(f"D{i + 1}-{start}-{destination}")
+                    else:
+                        try:
+                            drones_path_output[turn].append(f"D{i + 1}-{destination}")
+                        except KeyError:
+                            drones_path_output[turn] = []
+                            drones_path_output[turn].append(f"D{i + 1}-{destination}")
 
         return drones_path_output
 

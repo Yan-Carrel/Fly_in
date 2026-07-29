@@ -11,7 +11,7 @@ from parser import HubModel
 if __name__ == "__main__":
     load_dotenv()
     maps = os.getenv("MAPS").split(",")
-    map_parser = parser.MapParser(f"maps/{maps[9]}")
+    map_parser = parser.MapParser(f"maps/{maps[0]}")
 
     graph = graph_pac.Graph(map_parser.parse())
     visual = graph_pac.Visual(graph, 80, 100)
@@ -21,12 +21,17 @@ if __name__ == "__main__":
 
     paths = solver.get_all_paths()
 
-    if paths:
+    if paths != [[]]:
         for i in range(1, map_parser.drone_count + 1):
             route.best_path(f"D{i}", paths)
 
-    visual.drone_count = map_parser.drone_count
-    visual.formatted_routes = route.formatted_routes()
+        visual.drone_count = map_parser.drone_count
+        visual.formatted_routes = route.formatted_routes()
+        for i in range(1, len(visual.formatted_routes)):
+            print(visual.formatted_routes[i])
+        # exit(1)
 
-    engine.initialize_pygame()
-    engine.run()
+        engine.initialize_pygame()
+        engine.run()
+    else:
+        print("Unable to find any valid path")

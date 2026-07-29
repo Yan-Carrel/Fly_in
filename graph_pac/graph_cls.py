@@ -2,7 +2,9 @@ from parser import MapModel, ConnectionModel, HubModel
 
 
 class Graph:
-    def __init__(self, _map):
+    def __init__(self, _map: MapModel):
+        self.start_hub = _map.start_hub
+        self.end_hub = _map.end_hub
         self.hubs = _map.hubs
         self.connections = {}
         self.connection_capacities = {}
@@ -13,11 +15,8 @@ class Graph:
             name1, name2 = connection.connection.split("-")
             if name1 not in self.connections:
                 self.connections[name1] = []
-            # if name2 not in list(self.connections.keys()):
-            #     self.connections[name2] = []
             if name2 not in self.connections[name1]:
                 self.connections[name1].append(name2)
-                # self.connections[name2].append(name1)
             self.connection_capacities[(name1, name2)] = connection.metadata
 
     def get_hub(self, name: str) ->  HubModel:
