@@ -26,6 +26,9 @@ class Visual:
         self.drone_move_duration: dict[int, int] = {}
         self.drone_finished_move: dict[int, int] = {}
         self.drone_turns_elapsed: dict[int, int] = {}
+        self.nb_of_drone_moved: dict[int, int] = {}
+        self.total_cost = 0
+        self.average_turn = 0
 
     def build_layout(self) -> None:
         if self.win_width is None or self.win_height is None:
@@ -38,10 +41,17 @@ class Visual:
             self.margin,
         )
     
-    def simulation_text(self, turn: int, screen) -> None:
-        text_surface = self.pygame_font.render(f"Turns: {turn}", True, "white")
+    def simulation_text(self, turn: int, turns: int, screen) -> None:
+        self.display_text(f"Turns: {turn}/{turns}", (50, 10), screen)
+        self.display_text(f"Total drones: {self.drone_count}", (50, 30), screen)
+        self.display_text(f"Number of drones moved: {self.nb_of_drone_moved[turn]}", (50, 50), screen)
+        self.display_text(f"Total cost: {self.total_cost}", (50, 70), screen)
+        self.display_text(f"Average turn: {self.average_turn}", (50, 90), screen)
+
+    def display_text(self, text: str, pos: tuple[int, int], screen) -> None:
+        text_surface = self.pygame_font.render(text, True, "white")
         text_rect = text_surface.get_rect()
-        text_rect.midbottom = (50, 50)
+        text_rect.topleft = pos
         screen.blit(text_surface, text_rect)
 
     def draw_hubs(self, screen: "screen") -> None:
@@ -92,7 +102,7 @@ class Visual:
             y = self.drone_position[i][1] + self.drone_t[i] * (target_position[1] - self.drone_position[i][1])
 
             self.draw_drone((x, y), (20, 20), screen, surface)
-            self.simulation_text(turn, screen)
+            # self.simulation_text(turn, screen)
 
     def draw_drone(self, pos: tuple[int, int], size: tuple[int, int], screen: "screen", surface) -> None:
         screen.blit(surface, pos)

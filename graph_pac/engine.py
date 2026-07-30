@@ -44,12 +44,14 @@ class Engine:
             self.visual.drone_move_duration[i] = 1
             self.visual.drone_finished_move[i] = True
             self.visual.drone_turns_elapsed[i] = 0
+        
+        for i in range(1, len(self.visual.formatted_routes) + 1):
+            self.visual.nb_of_drone_moved[i] = len(self.visual.formatted_routes[i])
 
         self.visual.pygame = pygame
         self.visual.pygame_font = self.visual.pygame.font.SysFont("None", 20)
         self.drone_img = self.visual.pygame.image.load("drone.png")
         self.small_img = pygame.transform.scale(self.drone_img, (20, 20))
-
 
     def run(self):
         previous_frame = 0
@@ -89,3 +91,4 @@ class Engine:
                 self.turn += 1
 
         self.visual.draw_drones(self.screen, self.small_img, self.turn, self.frames_per_turn, self.previous_frame, self.frame)
+        self.visual.simulation_text(self.turn, len(self.visual.formatted_routes), self.screen)
