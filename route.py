@@ -37,41 +37,42 @@ class Route:
             current_hub = self.graph.get_hub(path[i])
             previous_hub = self.graph.get_hub(path[i - 1])
 
-            drones_in_hub = hub_states.get(turn, None)
-            if not drones_in_hub:
-                hub_states[turn] = {}
-                hub_states[turn][current_hub.name] = 0
-
-            link_state = link_states.get(turn, None)
-            if not link_state:
+            if turn not in hub_states:
+                prior_turns = [t for t in hub_states if t <= turn - 1]
+                baseline_turn = max(prior_turns) if prior_turns else None
+                hub_states[turn] = dict(hub_states[baseline_turn]) if baseline_turn is not None else {}
+            if turn not in link_states:
                 link_states[turn] = {}
-                link_states[turn][(previous_hub.name, current_hub.name)] = 0
-            link_state = link_states[turn].get((previous_hub.name, current_hub.name), 0)
 
             drones_in_hub = hub_states[turn].get(current_hub.name, 0)
+            link_state = link_states[turn].get((previous_hub.name, current_hub.name), 0)
 
             max_drones = self.convert_to_int(current_hub.metadata.get("max_drones", 100))
-            if previous_hub:
-                max_link_capacity = self.graph.connection_capacities.get((previous_hub.name, current_hub.name), 100)
-                max_link_capacity = self.convert_to_int(max_link_capacity)
-            else:
-                max_link_capacity = 100
+            max_link_capacity = self.convert_to_int(
+                self.graph.connection_capacities.get((previous_hub.name, current_hub.name), 100)
+            )
 
-            full = (max_drones < drones_in_hub + 1
-            or max_link_capacity < link_state + 1)
+            full = (max_drones < drones_in_hub + 1) or (max_link_capacity < link_state + 1)
 
             if not full:
                 hub_states[turn][current_hub.name] = drones_in_hub + 1
+                prev_count = hub_states[turn].get(previous_hub.name, 0)
+                if prev_count >= 1:
+                    hub_states[turn][previous_hub.name] = prev_count - 1
+
+                for t in hub_states:
+                    if t > turn:
+                        hub_states[t][current_hub.name] = hub_states[t].get(current_hub.name, 0) + 1
+                        later_prev = hub_states[t].get(previous_hub.name, 0)
+                        if later_prev >= 1:
+                            hub_states[t][previous_hub.name] = later_prev - 1
+
                 link_states[turn][(previous_hub.name, current_hub.name)] = link_state + 1
                 result_path.append(current_hub.name)
                 i += 1
             else:
                 result_path.append("")
-                if previous_hub.name not in hub_states[turn - 1]:
-                    hub_states[turn - 1][previous_hub.name] = 0
 
-                hub_states[turn - 1][previous_hub.name] -= 1
-    
             turn += 1
 
         return hub_states, link_states, result_path

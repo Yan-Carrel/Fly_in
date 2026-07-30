@@ -11,7 +11,7 @@ from parser import HubModel
 if __name__ == "__main__":
     load_dotenv()
     maps = os.getenv("MAPS").split(",")
-    map_parser = parser.MapParser(f"maps/{maps[9]}")
+    map_parser = parser.MapParser(f"maps/{maps[0]}")
 
     graph = graph_pac.Graph(map_parser.parse())
     visual = graph_pac.Visual(graph, 80, 100)
@@ -27,6 +27,8 @@ if __name__ == "__main__":
 
         visual.drone_count = map_parser.drone_count
         visual.formatted_routes = route.formatted_routes()
+        visual.hub_states = route.hub_states
+        print(route.hub_states)
 
         for i in range(1, len(visual.formatted_routes) + 1):
             print(" ".join(visual.formatted_routes[i]))

@@ -20,6 +20,7 @@ class Visual:
         self.pygame_font: Optional[pygame.font.SysFont] = None
         self.formatted_routes: Optional[list[str]] = None
         self.drone_count = 0
+        self.hub_states = {}
         self.drone_position: dict[int, tuple[int, int]] = {}
         self.drone_t: dict[int, tuple[int, int]] = {}
         self.drone_target: dict[int, tuple[int, int]] = {}
@@ -40,21 +41,27 @@ class Visual:
             self.win_height,
             self.margin,
         )
-    
-    def simulation_text(self, turn: int, turns: int, screen) -> None:
-        self.display_text(f"Turns: {turn}/{turns}", (50, 10), screen)
-        self.display_text(f"Total drones: {self.drone_count}", (50, 30), screen)
-        self.display_text(f"Number of drones moved: {self.nb_of_drone_moved[turn]}", (50, 50), screen)
-        self.display_text(f"Total cost: {self.total_cost}", (50, 70), screen)
-        self.display_text(f"Average turn: {self.average_turn}", (50, 90), screen)
 
-    def display_text(self, text: str, pos: tuple[int, int], screen) -> None:
-        text_surface = self.pygame_font.render(text, True, "white")
+    def simulation_text(self, turn: int, turns: int, screen) -> None:
+        self.display_text(f"Turns: {turn}/{turns}", (50, 10), "TL", "white", screen)
+        self.display_text(f"Total drones: {self.drone_count}", (50, 30), "TL", "white", screen)
+        self.display_text(f"Number of drones moved: {self.nb_of_drone_moved[turn]}", (50, 50), "TL", "white", screen)
+        self.display_text(f"Total cost: {self.total_cost}", (50, 70), "TL", "white", screen)
+        self.display_text(f"Average turn: {self.average_turn}", (50, 90), "TL", "white", screen)
+
+    def display_text(self, text: str, pos: tuple[int, int], anchor: str, color: str, screen) -> None:
+        text_surface = self.pygame_font.render(text, True, color)
         text_rect = text_surface.get_rect()
-        text_rect.topleft = pos
+        if anchor == "TL":
+            text_rect.topleft = pos
+        elif anchor == "MT":
+            text_rect.midtop = pos
+        elif anchor == "MB":
+            text_rect.midbottom = pos
+
         screen.blit(text_surface, text_rect)
 
-    def draw_hubs(self, screen: "screen") -> None:
+    def draw_hubs(self, turn: int, screen: "screen") -> None:
         if self.layout is None:
             raise ValueError("Layout has not been built")
 
@@ -72,11 +79,13 @@ class Visual:
                 color = "white"
             self.pygame.draw.circle(screen, color, (center_x, center_y), circle_radius, 0)
 
-            added_labels = []
-            text_surface = self.pygame_font.render(hub.name, True, "white")
-            text_rect = text_surface.get_rect()
-            text_rect.midbottom = (center_x, center_y - circle_radius)
-            screen.blit(text_surface, text_rect)
+            self.display_text(hub.name, (center_x, center_y - circle_radius), "MB", "white", screen)
+            max_drones = self.graph.get_hub(hub.name).metadata["max_drones"]
+            try:
+                drones_in_hub = self.hub_states[turn][hub.name]
+            except KeyError:
+                drones_in_hub = 0
+            self.display_text(f"{drones_in_hub}/{max_drones}", (center_x + 10, center_y + circle_radius + 10), "MT", "white", screen)
 
     def draw_drones(self, screen, surface, turn: int, frames_per_turn: int, previous_frame: int, frame: int) -> None:
         turn_moves = self.formatted_routes[turn]
@@ -102,7 +111,6 @@ class Visual:
             y = self.drone_position[i][1] + self.drone_t[i] * (target_position[1] - self.drone_position[i][1])
 
             self.draw_drone((x, y), (20, 20), screen, surface)
-            # self.simulation_text(turn, screen)
 
     def draw_drone(self, pos: tuple[int, int], size: tuple[int, int], screen: "screen", surface) -> None:
         screen.blit(surface, pos)

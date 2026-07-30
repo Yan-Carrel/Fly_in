@@ -72,8 +72,6 @@ class Engine:
         pygame.quit()
     
     def render(self) -> None:
-        self.visual.draw_hubs(self.screen)
-        self.visual.draw_connections(self.screen)
 
         if self.frame == self.previous_frame + self.frames_per_turn:
             self.previous_frame = self.frame
@@ -90,5 +88,7 @@ class Engine:
             if self.turn < len(self.visual.formatted_routes):
                 self.turn += 1
 
+        self.visual.draw_hubs(self.turn, self.screen)
+        self.visual.draw_connections(self.screen)
         self.visual.draw_drones(self.screen, self.small_img, self.turn, self.frames_per_turn, self.previous_frame, self.frame)
         self.visual.simulation_text(self.turn, len(self.visual.formatted_routes), self.screen)
