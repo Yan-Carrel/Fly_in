@@ -90,31 +90,53 @@ class Route:
         self.link_states = best_path[1]
         return best_path[-1]
 
-    def formatted_routes(self) -> list[str]:
-        turns = len(max(self.drones_path, key=len))
+    def formatted_routes(self) -> dict[int, list[str]]:
         drones_count = len(self.drones_path)
-        drones_path_output: dict[int, list[str]] = {}
+        max_len = len(max(self.drones_path, key=len))
 
-        for turn in range(1, turns):
+        input_idx = [1] * drones_count
+        pending_stay = [False] * drones_count
+        current_hub = [None] * drones_count
+        finished = [False] * drones_count
+
+        drones_path_output: dict[int, list[str]] = {}
+        output_turn = 0
+        safety_cap = max_len * 2 + drones_count
+
+        while not all(finished) and output_turn < safety_cap:
+            output_turn += 1
+            turn_moves = []
+
             for i in range(drones_count):
-                if turn < len(self.drones_path[i]) and self.drones_path[i][turn]:
-                    # try:
-                    connections = self.graph.connections
-                    destination = self.drones_path[i][turn]
-                    metadata = next((hub.metadata for hub in self.graph.hubs if hub.name == destination), None)
-                    if metadata and "zone" in metadata and metadata["zone"] == "restricted":
-                        start = next((key for key, value in self.graph.connections.items() if destination in self.graph.connections[key]), next)
-                        try:
-                            drones_path_output[turn].append(f"D{i + 1}-{start}-{destination}")
-                        except KeyError:
-                            drones_path_output[turn] = []
-                            drones_path_output[turn].append(f"D{i + 1}-{start}-{destination}")
-                    else:
-                        try:
-                            drones_path_output[turn].append(f"D{i + 1}-{destination}")
-                        except KeyError:
-                            drones_path_output[turn] = []
-                            drones_path_output[turn].append(f"D{i + 1}-{destination}")
+                if finished[i]:
+                    continue
+                if pending_stay[i]:
+                    turn_moves.append(f"D{i + 1}-{current_hub[i]}")
+                    pending_stay[i] = False
+                    continue
+                if input_idx[i] >= len(self.drones_path[i]):
+                    finished[i] = True
+                    continue
+
+                destination = self.drones_path[i][input_idx[i]]
+                input_idx[i] += 1
+
+                if not destination:
+                    continue
+                metadata = next((hub.metadata for hub in self.graph.hubs if hub.name == destination), None)
+                if metadata and metadata.get("zone") == "restricted":
+                    start = next(
+                        (key for key, value in self.graph.connections.items() if destination in value),
+                        None,
+                    )
+                    turn_moves.append(f"D{i + 1}-{start}-{destination}")
+                    current_hub[i] = destination
+                    pending_stay[i] = True
+                else:
+                    turn_moves.append(f"D{i + 1}-{destination}")
+
+            if turn_moves:
+                drones_path_output[output_turn] = turn_moves
 
         return drones_path_output
 
