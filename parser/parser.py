@@ -18,8 +18,7 @@ class MapParser:
             with open(self.filename, "r") as file:
                 lines = file.read().splitlines()
         except FileNotFoundError as e:
-            print(f"Error: {self.filename} was not found")
-            return
+            sys.exit(f"Error: {self.filename} was not found")
 
         hubs = []
         connections = []
@@ -68,9 +67,15 @@ class MapParser:
                     try:
                         meta_key, meta_value = meta.replace("[", "").replace("]", "").split('=')
                     except ValueError:
-                        print("Error: metadata should be in 'key=value' format")
-                        sys.exit(1)
+                        sys.exit("Error: metadata should be in 'key=value' format")
                     metadata[meta_key] = meta_value
+
+            if hub_type == "start_hub" or hub_type == "end_hub":
+                if not metadata.get("max_drones", None):
+                    metadata["max_drones"] = self.drone_count
+                elif metadata.get("max_drones", None) != self.drone_count:
+                    sys.exit("Error, the 'max_drones' value should be equal to "
+                        "the total number of drones in starting and ending hubs")
             elif len(parts) == 3:
                 metadata = None
 
@@ -82,8 +87,7 @@ class MapParser:
                 elif hub_type == "end_hub":
                     self.end_hub = new_hub
             except ValidationError as e:
-                print(e.errors()[0]['msg'])
-                sys.exit(1)
+                sys.exit(e.errors()[0]['msg'])
 
 
     def parse_connections(self, connections) -> None:
@@ -96,23 +100,19 @@ class MapParser:
                 raw_metadata = connec_parts[1].replace("[", "").replace("]", "")
 
                 if "=" not in raw_metadata:
-                    print(f"Error: Invalid metadata format '{raw_metadata}'")
-                    sys.exit(1)
+                    sys.exit(f"Error: Invalid metadata format '{raw_metadata}'")
 
                 try:
                     key, value = raw_metadata.split("=")
                 except Exception:
-                    print(f"Error: Invalid metadata format for {connec_parts[0]}")
-                    sys.exit(1)
+                    sys.exit(f"Error: Invalid metadata format for {connec_parts[0]}")
 
                 try:
                     connec_metadata = int(value)
                 except ValueError:
-                    print(f"Error: max_link_capacity must be a positive integer for {connec_parts[0]}")
-                    sys.exit(1)
+                    sys.exit(f"Error: max_link_capacity must be a positive integer for {connec_parts[0]}")
             else:
-                print(f"Error: invalid connection format '{connection}'")
-                sys.exit(1)
+                sys.exit(f"Error: invalid connection format '{connection}'")
 
             try:
                 self.connections.append(ConnectionModel(connection=connec_parts[0], metadata=connec_metadata))
