@@ -30,6 +30,7 @@ class Visual:
         self.nb_of_drone_moved: dict[int, int] = {}
         self.total_cost = 0
         self.average_turn = 0
+        self.hub_states = {}
 
     def build_layout(self) -> None:
         if self.win_width is None or self.win_height is None:
@@ -111,6 +112,11 @@ class Visual:
             y = self.drone_position[i][1] + self.drone_t[i] * (target_position[1] - self.drone_position[i][1])
 
             self.draw_drone((x, y), (20, 20), screen, surface)
+            drones_in_hub = self.hub_states[turn][target_hub.name]
+            if drones_in_hub == 1 and self.drone_t[i] < .9 or self.drone_t[i] > .1:
+                self.display_text(f"D{i}", (x, y), "MB", "green", screen)
+            elif target_hub.name not in [self.graph.end_hub.name, self.graph.start_hub.name]:
+                self.display_text(f"{drones_in_hub} drones", (x, y), "MB", "green", screen)
 
     def draw_drone(self, pos: tuple[int, int], size: tuple[int, int], screen: "screen", surface) -> None:
         screen.blit(surface, pos)
@@ -126,7 +132,13 @@ class Visual:
                 target_pos = self.layout.position(next((hub.x, hub.y) for hub in self.graph.hubs if hub.name == end_pos))
                 if sorted([start_pos, target_pos]) in drawn_lines:
                     continue
-                self.pygame.draw.line(screen, "white", start_pos, target_pos, 1)
+
+                target_hub = self.graph.get_hub(end_pos)
+                color = "white"
+                if "zone" in target_hub.metadata and target_hub.metadata["zone"] == "restricted":
+                    color = "red"
+
+                self.pygame.draw.line(screen, color, start_pos, target_pos, 1)
                 drawn_lines.append(sorted([start_pos, target_pos]))
 
 

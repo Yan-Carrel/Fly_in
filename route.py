@@ -70,10 +70,13 @@ class Route:
                 link_states[turn][(previous_hub.name, current_hub.name)] = link_state + 1
                 result_path.append(current_hub.name)
                 i += 1
+                metadata = current_hub.metadata
+                hop_cost = 2 if metadata.get("zone") == "restricted" else 1
             else:
                 result_path.append("")
+                hop_cost = 1
 
-            turn += 1
+            turn += hop_cost
 
         return hub_states, link_states, result_path
 

@@ -1,3 +1,4 @@
+import os
 import pygame
 from pygame.locals import (
     QUIT,
@@ -17,7 +18,7 @@ class Engine:
         self.visual = visual
         self.frame = 0
         self.previous_frame = 0
-        self.frames_per_turn = 300
+        self.frames_per_turn = 600
         self.turn = 1
 
     def initialize_pygame(self) -> None:
@@ -45,8 +46,8 @@ class Engine:
             self.visual.drone_finished_move[i] = True
             self.visual.drone_turns_elapsed[i] = 0
         
-        for i in range(1, len(self.visual.formatted_routes) + 1):
-            self.visual.nb_of_drone_moved[i] = len(self.visual.formatted_routes[i])
+        for turn, moves in self.visual.formatted_routes.items():
+            self.visual.nb_of_drone_moved[turn] = len(moves)
 
         self.visual.pygame = pygame
         self.visual.pygame_font = self.visual.pygame.font.SysFont("None", 20)

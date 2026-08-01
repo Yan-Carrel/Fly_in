@@ -8,6 +8,28 @@ from route import Route
 from parser import HubModel
 
 
+def compute_hub_occupancy(drone_count: int, graph: "graph_pac.Graph", formatted_routes: dict[int, list[str]]) -> dict[int, dict[str, int]]:
+    start_name = graph.start_hub.name
+    drone_position = {i: start_name for i in range(1, drone_count + 1)}
+
+    hub_states: dict[int, dict[str, int]] = {}
+    hub_states[0] = {hub.name: 0 for hub in graph.hubs}
+    hub_states[0][start_name] = drone_count
+
+    for turn in sorted(formatted_routes.keys()):
+        for move in formatted_routes[turn]:
+            drone_id, *hops = move.split("-")
+            drone_num = int(drone_id[1:])
+            drone_position[drone_num] = hops[0]
+
+        counts = {hub.name: 0 for hub in graph.hubs}
+        for hub_name in drone_position.values():
+            counts[hub_name] += 1
+        hub_states[turn] = counts
+
+    return hub_states
+
+
 if __name__ == "__main__":
     load_dotenv()
     maps = os.getenv("MAPS").split(",")
@@ -19,6 +41,8 @@ if __name__ == "__main__":
     solver = Solver(graph)
     route = Route(graph, solver.get_all_paths(), map_parser.drone_count)
 
+    # try:
+    engine.frames_per_turn = int(os.getenv("FRAMES_PER_TURN"))
     paths = solver.get_all_paths()
 
     if paths != [[]]:
@@ -27,8 +51,7 @@ if __name__ == "__main__":
 
         visual.drone_count = map_parser.drone_count
         visual.formatted_routes = route.formatted_routes()
-        visual.hub_states = route.hub_states
-        print(route.hub_states)
+        visual.hub_states = compute_hub_occupancy(map_parser.drone_count, graph, visual.formatted_routes)
 
         for i in range(1, len(visual.formatted_routes) + 1):
             print(" ".join(visual.formatted_routes[i]))
