@@ -6,7 +6,7 @@ install:
 	$(VENV_BIN)/pip install -r requirements.txt
 
 run:
-	$(VENV_BIN)/python3 fly_in.py
+	PYGAME_HIDE_SUPPORT_PROMPT=1 $(VENV_BIN)/python3 fly_in.py
 
 debug:
 	python3 -m pdb fly_in.py
