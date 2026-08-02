@@ -6,7 +6,7 @@ install:
 	$(VENV_BIN)/pip install -r requirements.txt
 
 run:
-	PYGAME_HIDE_SUPPORT_PROMPT=1 $(VENV_BIN)/python3 fly_in.py
+	PYGAME_HIDE_SUPPORT_PROMPT=1 $(VENV_BIN)/python3 fly_in.py $(MAP)
 
 debug:
 	python3 -m pdb fly_in.py
@@ -17,9 +17,9 @@ clean:
 	find . -type f -name "*.pyc" -delete
 
 lint:
-	$(VENV_BIN)/flake8 */*.py
+	$(VENV_BIN)/flake8 */*.py *.py
 	$(VENV_BIN)/mypy --warn-return-any --warn-unused-ignores --ignore-missing-imports --disallow-untyped-defs \
---check-untyped-defs */*.py
+--check-untyped-defs */*.py *.py
 
 lint-strict:
 	$(VENV_BIN)/mypy --strict

@@ -1,5 +1,6 @@
 """Pygame engine that drives the turn-based drone simulation loop."""
 import os
+import sys
 import pygame
 from .visual import Visual
 
@@ -13,19 +14,23 @@ class Engine:
     """
 
     def __init__(
-        self, background_color: str | tuple[int, int, int], visual: Visual
+        self,
+        background_color: str | tuple[int, int, int] | None, visual: Visual
             ) -> None:
         """Store the background color and the ``Visual`` to render each frame.
 
         Parameters
         ----------
-        background_color : str | tuple[int, int, int]
-            Color name for the window background, or ``"rainbow"`` for a
-            fixed accent color.
+        background_color : str | tuple[int, int, int] | None
+            Color name for the window background, ``"rainbow"`` for a
+            fixed accent color, or ``None`` to fall back to a default.
         visual : Visual
             The visual layer responsible for drawing hubs, connections,
             and drones.
         """
+        if background_color is None:
+            background_color = "black"
+
         self.background_color: str | tuple[int, int, int] = background_color
         if self.background_color == "rainbow":
             self.background_color = (255, 127, 80)
@@ -84,7 +89,10 @@ class Engine:
 
         self.visual.pygame = pygame
         self.visual.pygame_font = pygame.font.SysFont("None", 20)
-        self.drone_img = pygame.image.load("drone.png")
+        try:
+            self.drone_img = pygame.image.load("drone.png")
+        except FileNotFoundError:
+            sys.exit("Error, drone.img file not found.")
         self.small_img = pygame.transform.scale(self.drone_img, (20, 20))
 
     def run(self) -> None:

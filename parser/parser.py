@@ -8,10 +8,13 @@ import sys
 class MapParser:
     """Class that hold all parsing functions."""
 
-    def __init__(self, filename: str) -> None:
+    def __init__(self, filename: str | None) -> None:
         """Initialize the class with all needed elements."""
+        if filename is None:
+            sys.exit("Error: no map filename provided")
+
         self.drone_count = 0
-        self.filename = filename
+        self.filename: str = filename
         self.connections: list[ConnectionModel] = []
         self.hubs: list[HubModel] = []
 
@@ -21,7 +24,7 @@ class MapParser:
             with open(self.filename, "r") as file:
                 lines = file.read().splitlines()
         except FileNotFoundError:
-            sys.exit(f"Error: {self.filename} was not found")
+            sys.exit(f"Error: map '{self.filename}' was not found")
 
         hubs = []
         connections = []

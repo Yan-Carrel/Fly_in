@@ -12,7 +12,7 @@ class Solver:
         self.graph = graph
         self.start = next(
             hub for hub in self.graph.hubs if hub.name == "start")
-        self.paths = []
+        self.paths: list[str] = []
 
     def find_path(self, start: HubModel, visited: set[str]) -> list[str]:
         """Find path be reading graph and using BFS algorithm."""
@@ -50,16 +50,18 @@ class Solver:
         path.reverse()
         return path
 
-    def get_neighbors(self, hub: HubModel, visited: set[str]) -> list[str]:
+    def get_neighbors(
+        self, hub: HubModel, visited: set[str]
+            ) -> list[HubModel]:
         """Get hubs connected to hub by reading connections in graph."""
         connections = self.graph.connections.get(hub.name, [])
         neighbors = [
-            hub
-            for hub in self.graph.hubs
-            if hub.name in connections and hub.name not in visited
+            candidate
+            for candidate in self.graph.hubs
+            if candidate.name in connections and candidate.name not in visited
         ]
 
-        result = []
+        result: list[HubModel] = []
         for neighbor in neighbors:
             metadata = neighbor.metadata
             if (

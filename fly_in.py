@@ -12,51 +12,23 @@ from algorithm import Solver
 from route import Route
 
 
-def compute_hub_occupancy(
-    drone_count: int,
-    graph: "graph_pac.Graph",
-        formatted_routes: dict[int, list[str]]) -> dict[int, dict[str, int]]:
-    """Track position of each drone on each turn."""
-    start_name = graph.start_hub.name
-    drone_position = {i: start_name for i in range(1, drone_count + 1)}
-
-    hub_states: dict[int, dict[str, int]] = {}
-    hub_states[0] = {hub.name: 0 for hub in graph.hubs}
-    hub_states[0][start_name] = drone_count
-
-    for turn in sorted(formatted_routes.keys()):
-        for move in formatted_routes[turn]:
-            drone_id, *hops = move.split("-")
-            drone_num = int(drone_id[1:])
-            drone_position[drone_num] = hops[0]
-
-        counts = {hub.name: 0 for hub in graph.hubs}
-        for hub_name in drone_position.values():
-            counts[hub_name] += 1
-        hub_states[turn] = counts
-
-    return hub_states
-
-
 if __name__ == "__main__":
     load_dotenv()
-    try:
-        map_parser = parser.MapParser(os.getenv("MAP"))
-    except AttributeError:
-        sys.exit("Error, map not found. Please choose a filename in .env")
+    args = sys.argv
+    map_filename = args[1] if len(args) == 2 else os.getenv("MAP")
+    if not map_filename:
+        sys.exit("Error: map not found. Please choose a filename in .env")
+    map_parser = parser.MapParser(map_filename)
 
     graph = graph_pac.Graph(map_parser.parse())
     visual = graph_pac.Visual(graph, 80, 100)
-    try:
-        background = os.getenv("BACKGROUND")
-        engine = graph_pac.Engine(background, visual)
-    except ValueError:
-        engine = graph_pac.Engine("darkblue", visual)
+    background = os.getenv("BACKGROUND")
+    engine = graph_pac.Engine(background, visual)
 
     solver = Solver(graph)
     route = Route(graph, solver.get_all_paths(), map_parser.drone_count)
 
-    engine.frames_per_turn = int(os.getenv("FRAMES_PER_TURN"))
+    engine.frames_per_turn = int(os.getenv("FRAMES_PER_TURN") or "600")
     paths = solver.get_all_paths()
 
     if paths != [[]]:
@@ -65,7 +37,7 @@ if __name__ == "__main__":
 
         visual.drone_count = map_parser.drone_count
         visual.formatted_routes = route.formatted_routes()
-        visual.hub_states = compute_hub_occupancy(
+        visual.hub_states = route.compute_hub_occupancy(
             map_parser.drone_count, graph, visual.formatted_routes
             )
 

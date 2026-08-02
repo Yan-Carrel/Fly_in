@@ -1,5 +1,6 @@
 """This module is responsible for choosing appropriate path for each drone."""
 from graph_pac import Graph
+from parser import HubModel
 import copy
 
 
@@ -14,9 +15,9 @@ class Route:
         """Initialize the Route class."""
         self.graph = graph
         self.paths = paths
-        self.drones_path: list[str] = []
-        self.hub_states = {}
-        self.link_states = {}
+        self.drones_path: list[list[str]] = []
+        self.hub_states: dict[int, dict[str, int]] = {}
+        self.link_states: dict[int, dict[tuple[str, str], int]] = {}
         self.hub_states[0] = {"start": drones_count}
 
     def convert_to_int(self, value: object) -> int:
@@ -32,7 +33,12 @@ class Route:
             return value
         return 100
 
-    def compute_route(self, path: list[str]) -> tuple[dict, dict, list[str]]:
+    def compute_route(
+        self, path: list[str]
+            ) -> tuple[
+                dict[int, dict[str, int]],
+                dict[int, dict[tuple[str, str], int]],
+                list[str]]:
         """Simulate one drone's path turn-by-turn.
 
         Walks the raw path hop by hop, advancing a real-time
@@ -86,8 +92,8 @@ class Route:
         return hub_states, link_states, result_path
 
     def _ensure_turn_exists(
-        self, hub_states: dict,
-        link_states: dict, turn: int
+        self, hub_states: dict[int, dict[str, int]],
+        link_states: dict[int, dict[tuple[str, str], int]], turn: int
             ) -> None:
         """Seed this turn's hub occupancy from the most recent turn."""
         if turn not in hub_states:
@@ -99,28 +105,31 @@ class Route:
             link_states[turn] = {}
 
     def _can_advance(
-        self, hub_states: dict, link_states: dict,
-        turn: int, previous_hub, current_hub
+        self, hub_states: dict[int, dict[str, int]],
+        link_states: dict[int, dict[tuple[str, str], int]],
+        turn: int, previous_hub: HubModel, current_hub: HubModel
             ) -> bool:
         """Check free capacity in destination hub and the link int it."""
         drones_in_hub = hub_states[turn].get(current_hub.name, 0)
         link_load = link_states[turn].get(
             (previous_hub.name, current_hub.name), 0)
 
+        current_metadata = current_hub.metadata or {}
         max_drones = self.convert_to_int(
-            current_hub.metadata.get("max_drones", 100))
+            current_metadata.get("max_drones", 100))
         max_link_capacity = self.convert_to_int(
             self.graph.connection_capacities.get(
                 (previous_hub.name, current_hub.name), 100)
         )
 
-        return (
+        return bool(
             drones_in_hub + 1 <= max_drones
             and link_load + 1 <= max_link_capacity)
 
     def _apply_move(
-        self, hub_states: dict, link_states: dict,
-        turn: int, previous_hub, current_hub
+        self, hub_states: dict[int, dict[str, int]],
+        link_states: dict[int, dict[tuple[str, str], int]],
+        turn: int, previous_hub: HubModel, current_hub: HubModel
             ) -> None:
         """Record drone's arrival and departure from previous_hub."""
         hub_states[turn][current_hub.name] = hub_states[turn].get(
@@ -140,9 +149,10 @@ class Route:
                 if hub_states[t].get(previous_hub.name, 0) >= 1:
                     hub_states[t][previous_hub.name] -= 1
 
-    def _hop_cost(self, hub) -> int:
+    def _hop_cost(self, hub: HubModel) -> int:
         """Compute costs on each hub to enter."""
-        return 2 if hub.metadata.get("zone") == "restricted" else 1
+        metadata = hub.metadata or {}
+        return 2 if metadata.get("zone") == "restricted" else 1
 
     def best_path(self, drone: str, paths: list[list[str]]) -> list[str]:
         """Choose best and shortest path from many paths for a drone."""
@@ -180,7 +190,7 @@ class Route:
 
         input_idx = [1] * drones_count
         pending_stay = [False] * drones_count
-        current_hub = [None] * drones_count
+        current_hub: list[str | None] = [None] * drones_count
         finished = [False] * drones_count
 
         drones_path_output: dict[int, list[str]] = {}
@@ -227,31 +237,32 @@ class Route:
                 drones_path_output[output_turn] = turn_moves
 
         return drones_path_output
-    
-    # def compute_hub_occupancy(
-    #     self, drone_count: int,
-    #     graph: "graph_pac.Graph",
-    #         formatted_routes: dict[int, list[str]]) -> dict[int, dict[str, int]]:
-    #     """Track position of each drone on each turn."""
-    #     start_name = graph.start_hub.name
-    #     drone_position = {i: start_name for i in range(1, drone_count + 1)}
 
-    #     hub_states: dict[int, dict[str, int]] = {}
-    #     hub_states[0] = {hub.name: 0 for hub in graph.hubs}
-    #     hub_states[0][start_name] = drone_count
+    def compute_hub_occupancy(
+        self, drone_count: int,
+        graph: Graph,
+        formatted_routes: dict[int, list[str]]
+            ) -> dict[int, dict[str, int]]:
+        """Track position of each drone on each turn."""
+        start_name = graph.start_hub.name
+        drone_position = {i: start_name for i in range(1, drone_count + 1)}
 
-    #     for turn in sorted(formatted_routes.keys()):
-    #         for move in formatted_routes[turn]:
-    #             drone_id, *hops = move.split("-")
-    #             drone_num = int(drone_id[1:])
-    #             drone_position[drone_num] = hops[0]
+        hub_states: dict[int, dict[str, int]] = {}
+        hub_states[0] = {hub.name: 0 for hub in graph.hubs}
+        hub_states[0][start_name] = drone_count
 
-    #         counts = {hub.name: 0 for hub in graph.hubs}
-    #         for hub_name in drone_position.values():
-    #             counts[hub_name] += 1
-    #         hub_states[turn] = counts
+        for turn in sorted(formatted_routes.keys()):
+            for move in formatted_routes[turn]:
+                drone_id, *hops = move.split("-")
+                drone_num = int(drone_id[1:])
+                drone_position[drone_num] = hops[0]
 
-    #     return hub_states
+            counts = {hub.name: 0 for hub in graph.hubs}
+            for hub_name in drone_position.values():
+                counts[hub_name] += 1
+            hub_states[turn] = counts
+
+        return hub_states
 
     def get_path_cost(self, path: list[str]) -> int:
         """Compute cost of path based on the total turns needed."""
@@ -260,7 +271,8 @@ class Route:
             if not step:
                 cost += 1
                 continue
-            zone = self.graph.get_hub(step).metadata.get("zone")
+            metadata = self.graph.get_hub(step).metadata or {}
+            zone = metadata.get("zone")
             if zone == "restricted":
                 cost += 2
             elif zone in (None, "priority", "normal"):

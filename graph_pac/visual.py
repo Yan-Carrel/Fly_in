@@ -46,7 +46,7 @@ class Visual:
         self.drone_turns_elapsed: dict[int, int] = {}
         self.nb_of_drone_moved: dict[int, int] = {}
         self.total_cost = 0
-        self.average_turn = 0
+        self.average_turn = 0.0
 
     def _require_layout(self) -> "Layout":
         """Return the built layout, or raise if it isn't ready yet."""
@@ -101,10 +101,10 @@ class Visual:
             (50, 50), "TL", "white", screen)
         self.display_text(
             f"Total cost: {self.total_cost}",
-            (50, 70), "TL", "white", screen)
+            (400, 10), "TL", "white", screen)
         self.display_text(
             f"Average turn: {self.average_turn}",
-            (50, 90), "TL", "white", screen)
+            (400, 30), "TL", "white", screen)
 
     def display_text(
         self, text: str, pos: tuple[float, float],
