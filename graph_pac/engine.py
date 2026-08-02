@@ -12,19 +12,21 @@ class Engine:
     instance.
     """
 
-    def __init__(self, background_color: str, visual: Visual) -> None:
+    def __init__(
+        self, background_color: str | tuple[int, int, int], visual: Visual
+            ) -> None:
         """Store the background color and the ``Visual`` to render each frame.
 
         Parameters
         ----------
-        background_color : str
+        background_color : str | tuple[int, int, int]
             Color name for the window background, or ``"rainbow"`` for a
             fixed accent color.
         visual : Visual
             The visual layer responsible for drawing hubs, connections,
             and drones.
         """
-        self.background_color = background_color
+        self.background_color: str | tuple[int, int, int] = background_color
         if self.background_color == "rainbow":
             self.background_color = (255, 127, 80)
         self.running = True
@@ -46,36 +48,43 @@ class Engine:
         monitor_info = pygame.display.Info()
 
         try:
-            self.visual.win_width = int(os.getenv("WINDOW_WIDTH"))
-            self.visual.win_height = int(os.getenv("WINDOW_HEIGHT"))
+            width = int(os.getenv("WINDOW_WIDTH") or "")
+            height = int(os.getenv("WINDOW_HEIGHT") or "")
+            self.visual.win_width = width
+            self.visual.win_height = height
             self.visual.build_layout()
-            self.screen = pygame.display.set_mode(
-                [self.visual.win_width, self.visual.win_height])
+            self.screen = pygame.display.set_mode([width, height])
         except Exception:
-            self.visual.win_width = monitor_info.current_w
-            self.visual.win_height = monitor_info.current_h
+            width = monitor_info.current_w
+            height = monitor_info.current_h
+            self.visual.win_width = width
+            self.visual.win_height = height
 
             self.visual.build_layout()
             self.screen = pygame.display.set_mode(
-                (monitor_info.current_w, monitor_info.current_h),
-                pygame.FULLSCREEN)
+                (width, height), pygame.FULLSCREEN)
+
+        layout = self.visual.layout
+        assert layout is not None
 
         for i in range(self.visual.drone_count + 1):
             start_hub = self.visual.graph.get_hub("start")
-            self.visual.drone_position[i] = self.visual.layout.position(
+            self.visual.drone_position[i] = layout.position(
                 (start_hub.x, start_hub.y))
-            self.visual.drone_t[i] = 0
+            self.visual.drone_t[i] = 0.0
             self.visual.drone_target[i] = start_hub
             self.visual.drone_move_duration[i] = 1
             self.visual.drone_finished_move[i] = True
             self.visual.drone_turns_elapsed[i] = 0
 
-        for turn, moves in self.visual.formatted_routes.items():
+        routes = self.visual.formatted_routes
+        assert routes is not None
+        for turn, moves in routes.items():
             self.visual.nb_of_drone_moved[turn] = len(moves)
 
         self.visual.pygame = pygame
-        self.visual.pygame_font = self.visual.pygame.font.SysFont("None", 20)
-        self.drone_img = self.visual.pygame.image.load("drone.png")
+        self.visual.pygame_font = pygame.font.SysFont("None", 20)
+        self.drone_img = pygame.image.load("drone.png")
         self.small_img = pygame.transform.scale(self.drone_img, (20, 20))
 
     def run(self) -> None:
@@ -107,6 +116,8 @@ class Engine:
             self.previous_frame = self.frame
 
             visual = self.visual
+            layout = visual.layout
+            assert layout is not None
 
             for i in range(1, visual.drone_count + 1):
                 if visual.drone_finished_move[i]:
@@ -121,12 +132,17 @@ class Engine:
 
                 visual.drone_finished_move[i] = True
                 target_hub = visual.drone_target[i]
-                visual.drone_position[i] = visual.layout.position(
+                visual.drone_position[i] = layout.position(
                     (target_hub.x, target_hub.y)
                 )
 
-            if self.turn < len(self.visual.formatted_routes):
+            routes = visual.formatted_routes
+            assert routes is not None
+            if self.turn < len(routes):
                 self.turn += 1
+
+        routes = self.visual.formatted_routes
+        assert routes is not None
 
         self.visual.draw_hubs(self.turn, self.screen)
         self.visual.draw_connections(self.screen)
@@ -134,4 +150,4 @@ class Engine:
             self.screen, self.small_img, self.turn,
             self.frames_per_turn, self.previous_frame, self.frame)
         self.visual.simulation_text(
-            self.turn, len(self.visual.formatted_routes), self.screen)
+            self.turn, len(routes), self.screen)

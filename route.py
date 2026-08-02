@@ -227,6 +227,31 @@ class Route:
                 drones_path_output[output_turn] = turn_moves
 
         return drones_path_output
+    
+    # def compute_hub_occupancy(
+    #     self, drone_count: int,
+    #     graph: "graph_pac.Graph",
+    #         formatted_routes: dict[int, list[str]]) -> dict[int, dict[str, int]]:
+    #     """Track position of each drone on each turn."""
+    #     start_name = graph.start_hub.name
+    #     drone_position = {i: start_name for i in range(1, drone_count + 1)}
+
+    #     hub_states: dict[int, dict[str, int]] = {}
+    #     hub_states[0] = {hub.name: 0 for hub in graph.hubs}
+    #     hub_states[0][start_name] = drone_count
+
+    #     for turn in sorted(formatted_routes.keys()):
+    #         for move in formatted_routes[turn]:
+    #             drone_id, *hops = move.split("-")
+    #             drone_num = int(drone_id[1:])
+    #             drone_position[drone_num] = hops[0]
+
+    #         counts = {hub.name: 0 for hub in graph.hubs}
+    #         for hub_name in drone_position.values():
+    #             counts[hub_name] += 1
+    #         hub_states[turn] = counts
+
+    #     return hub_states
 
     def get_path_cost(self, path: list[str]) -> int:
         """Compute cost of path based on the total turns needed."""

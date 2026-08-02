@@ -1,6 +1,10 @@
 """Rendering layer for the drone simulation."""
-import pygame
+from types import ModuleType
 from typing import Optional
+
+import pygame
+
+from parser import HubModel
 from .graph_cls import Graph
 
 
@@ -26,24 +30,47 @@ class Visual:
         self.target_min_gap = target_min_gap
         self.graph = graph
         self.margin = margin
-        self.win_width = None
-        self.win_height = None
+        self.win_width: Optional[int] = None
+        self.win_height: Optional[int] = None
         self.layout: Optional[Layout] = None
-        self.pygame: Optional[pygame] = None
-        self.pygame_font: Optional[pygame.font.SysFont] = None
-        self.formatted_routes: Optional[list[str]] = None
+        self.pygame: Optional[ModuleType] = None
+        self.pygame_font: Optional[pygame.font.Font] = None
+        self.formatted_routes: Optional[dict[int, list[str]]] = None
         self.drone_count = 0
-        self.hub_states = {}
-        self.drone_position: dict[int, tuple[int, int]] = {}
-        self.drone_t: dict[int, tuple[int, int]] = {}
-        self.drone_target: dict[int, tuple[int, int]] = {}
+        self.hub_states: dict[int, dict[str, int]] = {}
+        self.drone_position: dict[int, tuple[float, float]] = {}
+        self.drone_t: dict[int, float] = {}
+        self.drone_target: dict[int, HubModel] = {}
         self.drone_move_duration: dict[int, int] = {}
-        self.drone_finished_move: dict[int, int] = {}
+        self.drone_finished_move: dict[int, bool] = {}
         self.drone_turns_elapsed: dict[int, int] = {}
         self.nb_of_drone_moved: dict[int, int] = {}
         self.total_cost = 0
         self.average_turn = 0
-        self.hub_states = {}
+
+    def _require_layout(self) -> "Layout":
+        """Return the built layout, or raise if it isn't ready yet."""
+        if self.layout is None:
+            raise ValueError("Layout has not been built")
+        return self.layout
+
+    def _require_pygame(self) -> ModuleType:
+        """Return the pygame module, or raise if it hasn't been attached."""
+        if self.pygame is None:
+            raise ValueError("pygame has not been attached to Visual")
+        return self.pygame
+
+    def _require_font(self) -> pygame.font.Font:
+        """Return the font, or raise if it hasn't been initialized."""
+        if self.pygame_font is None:
+            raise ValueError("Font has not been initialized")
+        return self.pygame_font
+
+    def _require_routes(self) -> dict[int, list[str]]:
+        """Return formatted_routes, or raise if it hasn't been set."""
+        if self.formatted_routes is None:
+            raise ValueError("formatted_routes has not been set")
+        return self.formatted_routes
 
     def build_layout(self) -> None:
         """Instantiate and compute the layout that will be used."""
@@ -58,7 +85,10 @@ class Visual:
             self.margin,
         )
 
-    def simulation_text(self, turn: int, turns: int, screen) -> None:
+    def simulation_text(
+        self, turn: int, turns: int,
+        screen: pygame.Surface
+            ) -> None:
         """Responsible for displaying statistics and metrics."""
         self.display_text(
             f"Turns: {turn}/{turns}", (50, 10),
@@ -77,31 +107,34 @@ class Visual:
             (50, 90), "TL", "white", screen)
 
     def display_text(
-        self, text: str, pos: tuple[int, int],
-        anchor: str, color: str, screen
+        self, text: str, pos: tuple[float, float],
+        anchor: str, color: str, screen: pygame.Surface
             ) -> None:
         """Responsible for displaying text at (x, y) coordinates."""
-        text_surface = self.pygame_font.render(text, True, color)
+        font = self._require_font()
+        text_surface = font.render(text, True, color)
         text_rect = text_surface.get_rect()
+        int_pos = (int(pos[0]), int(pos[1]))
+
         if anchor == "TL":
-            text_rect.topleft = pos
+            text_rect.topleft = int_pos
         elif anchor == "MT":
-            text_rect.midtop = pos
+            text_rect.midtop = int_pos
         elif anchor == "MB":
-            text_rect.midbottom = pos
+            text_rect.midbottom = int_pos
 
         screen.blit(text_surface, text_rect)
 
-    def draw_hubs(self, turn: int, screen) -> None:
-        """Draw every hub as a circle and labele with name and occupancy."""
-        if self.layout is None:
-            raise ValueError("Layout has not been built")
+    def draw_hubs(self, turn: int, screen: pygame.Surface) -> None:
+        """Draw every hub as a circle and label with name and occupancy."""
+        layout = self._require_layout()
+        pg = self._require_pygame()
 
         for hub in self.graph.hubs:
-            center_x, center_y = self.layout.position((hub.x, hub.y))
+            center_x, center_y = layout.position((hub.x, hub.y))
             circle_radius = 6
 
-            self.pygame.draw.circle(
+            pg.draw.circle(
                 screen, self._hub_color(hub),
                 (center_x, center_y), circle_radius, 0)
 
@@ -114,19 +147,21 @@ class Visual:
                 (center_x + 10, center_y + circle_radius + 10),
                 "MT", "white", screen)
 
-    def _hub_color(self, hub) -> str | tuple[int, int, int]:
+    def _hub_color(self, hub: HubModel) -> str | tuple[int, int, int]:
         """Return the hub's display color, resolving 'rainbow' color issue."""
-        color = hub.metadata.get("color", "white")
+        metadata = hub.metadata or {}
+        color = metadata.get("color", "white")
         return (255, 127, 80) if color == "rainbow" else color
 
-    def _occupancy_label(self, hub, turn: int) -> str:
+    def _occupancy_label(self, hub: HubModel, turn: int) -> str:
         """Return a 'current/max' occupancy string at the given turn."""
-        max_drones = hub.metadata["max_drones"]
+        metadata = hub.metadata or {}
+        max_drones = metadata.get("max_drones", "?")
         drones_in_hub = self.hub_states.get(turn, {}).get(hub.name, 0)
         return f"{drones_in_hub}/{max_drones}"
 
     def draw_drones(
-        self, screen, surface, turn: int,
+        self, screen: pygame.Surface, surface: pygame.Surface, turn: int,
         frames_per_turn: int, previous_frame: int, frame: int
             ) -> None:
         """Draw every drone at its current interpolated position.
@@ -138,7 +173,7 @@ class Visual:
         1 = arrived). Also labels each drone with its id, or with an
         occupancy count if it shares a hub with other drones.
         """
-        turn_moves = self.formatted_routes[turn]
+        turn_moves = self._require_routes()[turn]
         elapsed = frame - previous_frame
 
         for i in range(1, self.drone_count + 1):
@@ -174,17 +209,17 @@ class Visual:
             ) -> None:
         """Update position relative to its current move this drone is."""
         duration = self.drone_move_duration[drone_id]
-        total_elapsed = (
-            self.drone_turns_elapsed[drone_id] *
-            frames_per_turn + elapsed)
+        turns_elapsed = self.drone_turns_elapsed[drone_id]
+        total_elapsed = turns_elapsed * frames_per_turn + elapsed
         self.drone_t[drone_id] = min(
             total_elapsed / (frames_per_turn * duration), 1.0
             )
 
     def _interpolated_position(self, drone_id: int) -> tuple[float, float]:
         """Compute current (x, y) between origin and target hub."""
+        layout = self._require_layout()
         target_hub = self.drone_target[drone_id]
-        target_position = self.layout.position((target_hub.x, target_hub.y))
+        target_position = layout.position((target_hub.x, target_hub.y))
         start_x, start_y = self.drone_position[drone_id]
         t = self.drone_t[drone_id]
 
@@ -194,7 +229,7 @@ class Visual:
 
     def _label_drone(
         self, drone_id: int, turn: int, x: float,
-        y: float, screen
+        y: float, screen: pygame.Surface
             ) -> None:
         """Draw the drone's id."""
         is_settled = self.drone_finished_move[drone_id]
@@ -206,38 +241,36 @@ class Visual:
                 f"D{drone_id}", (x, y), "MB", "green", screen)
 
     def draw_drone(
-        self, pos: tuple[int, int],
-        size: tuple[int, int], screen, surface
+        self, pos: tuple[float, float],
+        size: tuple[int, int], screen: pygame.Surface,
+        surface: pygame.Surface
             ) -> None:
         """Display the image of a drone at (x, y) coordinates."""
         screen.blit(surface, pos)
 
-    def draw_connections(self, screen) -> None:
+    def draw_connections(self, screen: pygame.Surface) -> None:
         """Draw the connections between hubs."""
-        if self.layout is None:
-            raise ValueError("Layout has not been built")
+        layout = self._require_layout()
+        pg = self._require_pygame()
 
         drawn_lines = []
         for key in self.graph.connections:
-            start_pos = self.layout.position(next(
+            start_pos = layout.position(next(
                 (hub.x, hub.y) for hub in self.graph.hubs
                 if hub.name == key))
             for end_pos in self.graph.connections[key]:
-                target_pos = self.layout.position(next(
+                target_pos = layout.position(next(
                     (hub.x, hub.y) for hub in self.graph.hubs
                     if hub.name == end_pos))
                 if sorted([start_pos, target_pos]) in drawn_lines:
                     continue
 
                 target_hub = self.graph.get_hub(end_pos)
-                color = "white"
-                if (
-                    "zone" in target_hub.metadata
-                    and target_hub.metadata["zone"] == "restricted"
-                        ):
-                    color = "red"
+                metadata = target_hub.metadata or {}
+                color = "red" if metadata.get("zone") == "restricted" \
+                    else "white"
 
-                self.pygame.draw.line(screen, color, start_pos, target_pos, 1)
+                pg.draw.line(screen, color, start_pos, target_pos, 1)
                 drawn_lines.append(sorted([start_pos, target_pos]))
 
 
@@ -248,7 +281,7 @@ class Layout:
         self, graph: Graph, win_width: int,
         win_height: int, margin: int
             ) -> None:
-        """Initialize with all inforamtions needed."""
+        """Initialize with all informations needed."""
         self.graph = graph
         self.win_width = win_width
         self.win_height = win_height
@@ -273,7 +306,7 @@ class Layout:
             self.win_height - (self.margin * 2)
             )
 
-    def offset(self) -> tuple[int, int]:
+    def offset(self) -> tuple[float, float]:
         """Return the offsets that will be applied to center coordinates."""
         graph_width, graph_height = self.graph_size()
         offset_x = (self.win_width - graph_width) / 2
@@ -288,7 +321,7 @@ class Layout:
 
         return offset_x, offset_y
 
-    def compute_scale(self) -> None:
+    def compute_scale(self) -> float:
         """Compute appropriate scale to help the screen to fit the window."""
         max_x, min_x, max_y, min_y = self.map_bounds()
         canvas_width, canvas_height = self.canvas_size()
@@ -304,7 +337,7 @@ class Layout:
 
         return min(scale_a, scale_b)
 
-    def graph_size(self) -> None:
+    def graph_size(self) -> tuple[float, float]:
         """Return the size of the graph."""
         max_x, min_x, max_y, min_y = self.map_bounds()
         scale = self.compute_scale()

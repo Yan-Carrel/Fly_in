@@ -55,7 +55,7 @@ class HubModel(BaseModel):
                             "can't be negative or equal to 0."
                             )
         else:
-            self.metadata["max_drones"] = 1
+            self.metadata = {"max_drones": 1}
         return self
 
 

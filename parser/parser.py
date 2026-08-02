@@ -12,10 +12,8 @@ class MapParser:
         """Initialize the class with all needed elements."""
         self.drone_count = 0
         self.filename = filename
-        self.connections = []
-        self.start_hub = None
-        self.end_hub = None
-        self.hubs = []
+        self.connections: list[ConnectionModel] = []
+        self.hubs: list[HubModel] = []
 
     def parse(self) -> MapModel:
         """Act as a function responsible for parsing all datas from map."""
@@ -52,10 +50,9 @@ class MapParser:
                 )
             return _map
         except ValidationError as e:
-            print(e.errors()[0]['msg'])
-            sys.exit(1)
+            sys.exit(e.errors()[0]['msg'])
 
-    def parse_hub(self, hubs) -> None:
+    def parse_hub(self, hubs: list[dict[str, str]]) -> None:
         """Parse name, x and y coordinates and metadata."""
         for hub in hubs:
             hub_type, value = list(hub.items())[0]
@@ -63,7 +60,7 @@ class MapParser:
             try:
                 name, x, y = parts[0:3]
             except Exception:
-                print(
+                sys.exit(
                     "Error: invalid hub format. "
                     "Usage: <name> <x> <y> <metadata>")
                 continue
@@ -90,7 +87,7 @@ class MapParser:
                         "the total number of drones in "
                         "starting and ending hubs.")
             elif len(parts) == 3:
-                metadata = None
+                metadata = {"max_drones": 1}
 
             try:
                 new_hub = HubModel(
@@ -103,7 +100,7 @@ class MapParser:
             except ValidationError as e:
                 sys.exit(e.errors()[0]['msg'])
 
-    def parse_connections(self, connections) -> None:
+    def parse_connections(self, connections: list[str]) -> None:
         """Parse connections, get and check formats.
 
         Loop, format, and verify each value and get.
@@ -141,6 +138,6 @@ class MapParser:
                 self.connections.append(
                     ConnectionModel(
                         connection=connec_parts[0], metadata=connec_metadata))
-            except ValueError as e:
+            except ValidationError as e:
                 print(e.errors()[0]['msg'])
                 sys.exit(1)
