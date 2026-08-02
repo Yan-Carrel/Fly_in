@@ -1,16 +1,29 @@
+"""Pygame engine that drives the turn-based drone simulation loop."""
 import os
 import pygame
-from pygame.locals import (
-    QUIT,
-    K_ESCAPE
-    )
-from .graph_cls import Graph
 from .visual import Visual
-import os
 
 
 class Engine:
-    def __init__(self, background_color: str, visual: Visual)  -> None:
+    """Own the pygame window, main loop, and turn/frame timing.
+
+    Coordinates when a simulation turn advances (based on elapsed frames),
+    delegating all drawing and per-drone state to the attached ``Visual``
+    instance.
+    """
+
+    def __init__(self, background_color: str, visual: Visual) -> None:
+        """Store the background color and the ``Visual`` to render each frame.
+
+        Parameters
+        ----------
+        background_color : str
+            Color name for the window background, or ``"rainbow"`` for a
+            fixed accent color.
+        visual : Visual
+            The visual layer responsible for drawing hubs, connections,
+            and drones.
+        """
         self.background_color = background_color
         if self.background_color == "rainbow":
             self.background_color = (255, 127, 80)
@@ -22,6 +35,13 @@ class Engine:
         self.turn = 1
 
     def initialize_pygame(self) -> None:
+        """Set up the pygame window, drone assets, and per-drone initial state.
+
+        Reads window dimensions from the environment (falling back to the
+        monitor's full resolution/fullscreen mode if unset or invalid),
+        builds the layout, seeds every drone's starting position at the
+        start hub, and precomputes how many drones move on each turn.
+        """
         pygame.init()
         monitor_info = pygame.display.Info()
 
@@ -29,23 +49,27 @@ class Engine:
             self.visual.win_width = int(os.getenv("WINDOW_WIDTH"))
             self.visual.win_height = int(os.getenv("WINDOW_HEIGHT"))
             self.visual.build_layout()
-            self.screen = pygame.display.set_mode([self.visual.win_width, self.visual.win_height])
+            self.screen = pygame.display.set_mode(
+                [self.visual.win_width, self.visual.win_height])
         except Exception:
             self.visual.win_width = monitor_info.current_w
             self.visual.win_height = monitor_info.current_h
 
             self.visual.build_layout()
-            self.screen = pygame.display.set_mode((monitor_info.current_w, monitor_info.current_h), pygame.FULLSCREEN)
+            self.screen = pygame.display.set_mode(
+                (monitor_info.current_w, monitor_info.current_h),
+                pygame.FULLSCREEN)
 
         for i in range(self.visual.drone_count + 1):
             start_hub = self.visual.graph.get_hub("start")
-            self.visual.drone_position[i] = self.visual.layout.position((start_hub.x, start_hub.y))
+            self.visual.drone_position[i] = self.visual.layout.position(
+                (start_hub.x, start_hub.y))
             self.visual.drone_t[i] = 0
             self.visual.drone_target[i] = start_hub
             self.visual.drone_move_duration[i] = 1
             self.visual.drone_finished_move[i] = True
             self.visual.drone_turns_elapsed[i] = 0
-        
+
         for turn, moves in self.visual.formatted_routes.items():
             self.visual.nb_of_drone_moved[turn] = len(moves)
 
@@ -54,9 +78,8 @@ class Engine:
         self.drone_img = self.visual.pygame.image.load("drone.png")
         self.small_img = pygame.transform.scale(self.drone_img, (20, 20))
 
-    def run(self):
-        previous_frame = 0
-        frame = 0
+    def run(self) -> None:
+        """Run the main event/render loop until the window is closed."""
         while self.running:
             for event in pygame.event.get():
                 if event.type == pygame.QUIT:
@@ -71,25 +94,44 @@ class Engine:
             self.render()
             pygame.display.flip()
         pygame.quit()
-    
-    def render(self) -> None:
 
+    def render(self) -> None:
+        """Advance the turn if enough frames have elapsed, then draw frame.
+
+        Turn advancement ticks forward any drones mid multi-turn move and
+        finalizes their position once their move duration is reached,
+        before incrementing ``self.turn``. Drawing always happens every
+        frame regardless of whether a turn boundary was crossed.
+        """
         if self.frame == self.previous_frame + self.frames_per_turn:
             self.previous_frame = self.frame
 
-            for i in range(1, self.visual.drone_count + 1):
-                if not self.visual.drone_finished_move[i]:
-                    self.visual.drone_turns_elapsed[i] += 1
-                    if self.visual.drone_turns_elapsed[i] >= self.visual.drone_move_duration[i]:
-                        self.visual.drone_finished_move[i] = True
-                        target_hub = self.visual.drone_target[i]
-                        self.visual.drone_position[i] = self.visual.layout.position((target_hub.x, target_hub.y))
+            visual = self.visual
 
-            
+            for i in range(1, visual.drone_count + 1):
+                if visual.drone_finished_move[i]:
+                    continue
+
+                visual.drone_turns_elapsed[i] += 1
+                elapsed = visual.drone_turns_elapsed[i]
+                duration = visual.drone_move_duration[i]
+
+                if elapsed < duration:
+                    continue
+
+                visual.drone_finished_move[i] = True
+                target_hub = visual.drone_target[i]
+                visual.drone_position[i] = visual.layout.position(
+                    (target_hub.x, target_hub.y)
+                )
+
             if self.turn < len(self.visual.formatted_routes):
                 self.turn += 1
 
         self.visual.draw_hubs(self.turn, self.screen)
         self.visual.draw_connections(self.screen)
-        self.visual.draw_drones(self.screen, self.small_img, self.turn, self.frames_per_turn, self.previous_frame, self.frame)
-        self.visual.simulation_text(self.turn, len(self.visual.formatted_routes), self.screen)
+        self.visual.draw_drones(
+            self.screen, self.small_img, self.turn,
+            self.frames_per_turn, self.previous_frame, self.frame)
+        self.visual.simulation_text(
+            self.turn, len(self.visual.formatted_routes), self.screen)

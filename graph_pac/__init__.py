@@ -1,5 +1,6 @@
+"""Public interface for the graph_pac package."""
 from .engine import Engine
 from .graph_cls import Graph
 from .visual import Visual, Layout
 
-__all__ = ["Graph", "Engine"]
+__all__ = ["Graph", "Engine", "Visual", "Layout"]

@@ -1,14 +1,22 @@
+"""Entry point for the drone routing simulation.
+
+Parses a map file, computes optimal drone paths with capacity and
+timing constraints, and runs the pygame visualization.
+"""
 import os
+import sys
 from dotenv import load_dotenv
 import parser
 import graph_pac
-import webcolors
 from algorithm import Solver
 from route import Route
-from parser import HubModel
 
 
-def compute_hub_occupancy(drone_count: int, graph: "graph_pac.Graph", formatted_routes: dict[int, list[str]]) -> dict[int, dict[str, int]]:
+def compute_hub_occupancy(
+    drone_count: int,
+    graph: "graph_pac.Graph",
+        formatted_routes: dict[int, list[str]]) -> dict[int, dict[str, int]]:
+    """Track position of each drone on each turn."""
     start_name = graph.start_hub.name
     drone_position = {i: start_name for i in range(1, drone_count + 1)}
 
@@ -32,16 +40,22 @@ def compute_hub_occupancy(drone_count: int, graph: "graph_pac.Graph", formatted_
 
 if __name__ == "__main__":
     load_dotenv()
-    maps = os.getenv("MAPS").split(",")
-    map_parser = parser.MapParser(f"maps/{maps[0]}")
+    try:
+        map_parser = parser.MapParser(os.getenv("MAP"))
+    except AttributeError:
+        sys.exit("Error, map not found. Please choose a filename in .env")
 
     graph = graph_pac.Graph(map_parser.parse())
     visual = graph_pac.Visual(graph, 80, 100)
-    engine = graph_pac.Engine("darkblue", visual)
+    try:
+        background = os.getenv("BACKGROUND")
+        engine = graph_pac.Engine(background, visual)
+    except ValueError:
+        engine = graph_pac.Engine("darkblue", visual)
+
     solver = Solver(graph)
     route = Route(graph, solver.get_all_paths(), map_parser.drone_count)
 
-    # try:
     engine.frames_per_turn = int(os.getenv("FRAMES_PER_TURN"))
     paths = solver.get_all_paths()
 
@@ -51,13 +65,18 @@ if __name__ == "__main__":
 
         visual.drone_count = map_parser.drone_count
         visual.formatted_routes = route.formatted_routes()
-        visual.hub_states = compute_hub_occupancy(map_parser.drone_count, graph, visual.formatted_routes)
+        visual.hub_states = compute_hub_occupancy(
+            map_parser.drone_count, graph, visual.formatted_routes
+            )
 
         for i in range(1, len(visual.formatted_routes) + 1):
             print(" ".join(visual.formatted_routes[i]))
             visual.total_cost += len(visual.formatted_routes[i])
-            if any(graph.end_hub.name in element for element in visual.formatted_routes[i]):
-                    visual.average_turn += i
+            if any(
+                graph.end_hub.name in element
+                for element in visual.formatted_routes[i]
+            ):
+                visual.average_turn += i
         visual.average_turn /= map_parser.drone_count
 
         engine.initialize_pygame()

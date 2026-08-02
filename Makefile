@@ -17,9 +17,9 @@ clean:
 	find . -type f -name "*.pyc" -delete
 
 lint:
-	$(VENV_BIN)/flake8 .
-	$(VENV_BIN)/mypy --warn-return-any --warn-unused-ignores --ignore-missing-imports --disallow-untyped-defs\
---check-untyped-defs
+	$(VENV_BIN)/flake8 */*.py
+	$(VENV_BIN)/mypy --warn-return-any --warn-unused-ignores --ignore-missing-imports --disallow-untyped-defs \
+--check-untyped-defs */*.py
 
 lint-strict:
 	$(VENV_BIN)/mypy --strict

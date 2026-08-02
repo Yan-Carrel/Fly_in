@@ -1,18 +1,25 @@
+"""Module responsible for solving and finding paths."""
 from collections import deque
 from graph_pac import Graph
 from parser import HubModel
 
 
 class Solver:
+    """Class that find single valid path or few valid paths."""
+
     def __init__(self, graph: Graph) -> None:
+        """Initialize the 'Solver' class."""
         self.graph = graph
-        self.start = next(hub for hub in self.graph.hubs if hub.name == "start")
+        self.start = next(
+            hub for hub in self.graph.hubs if hub.name == "start")
         self.paths = []
 
     def find_path(self, start: HubModel, visited: set[str]) -> list[str]:
+        """Find path be reading graph and using BFS algorithm."""
         goal = getattr(self.graph, "end_hub", None)
         if goal is None:
-            goal = next((hub for hub in self.graph.hubs if hub.name == "goal"), None)
+            goal = next(
+                (hub for hub in self.graph.hubs if hub.name == "goal"), None)
         if goal is None:
             return []
 
@@ -44,6 +51,7 @@ class Solver:
         return path
 
     def get_neighbors(self, hub: HubModel, visited: set[str]) -> list[str]:
+        """Get hubs connected to hub by reading connections in graph."""
         connections = self.graph.connections.get(hub.name, [])
         neighbors = [
             hub
@@ -54,7 +62,9 @@ class Solver:
         result = []
         for neighbor in neighbors:
             metadata = neighbor.metadata
-            if metadata and "zone" in metadata and metadata["zone"] == "blocked":
+            if (
+                metadata and "zone" in metadata
+                    and metadata["zone"] == "blocked"):
                 pass
             else:
                 result.append(neighbor)
@@ -62,16 +72,19 @@ class Solver:
         return result
 
     def get_all_paths(self) -> list[list[str]]:
+        """Find all available paths that can be used to reach goal."""
         main_path = self.find_path(self.start, set())
         junctions = self.get_junctions()
         paths: list[list[str]] = []
         paths.append(main_path)
 
-
         for junction in junctions:
             junction_children = self.graph.connections[junction]
-            used_children = {c for c in junction_children if any(c in path for path in paths)}
-            unused_children = [c for c in junction_children if c not in used_children]
+            used_children = {
+                c for c in junction_children
+                if any(c in path for path in paths)}
+            unused_children = [
+                c for c in junction_children if c not in used_children]
 
             for child in unused_children:
                 visited = used_children | (set(unused_children) - {child})
@@ -82,11 +95,12 @@ class Solver:
         return paths
 
     def get_junctions(self) -> list[str]:
+        """Find all junctions or hubs that are connected to many hubs."""
         result = []
         for hub in self.graph.hubs:
             connections = self.graph.connections.get(hub.name, [])
 
-            if len(connections) > 1: 
+            if len(connections) > 1:
                 result.append(hub.name)
 
         return result
