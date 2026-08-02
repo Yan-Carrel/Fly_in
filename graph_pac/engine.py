@@ -102,7 +102,7 @@ class Engine:
                 if event.type == pygame.QUIT:
                     self.running = False
                 elif event.type == pygame.KEYDOWN:
-                    if pygame.K_ESCAPE:
+                    if event.key == pygame.K_ESCAPE:
                         self.running = False
 
             self.frame += 1

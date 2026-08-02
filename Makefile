@@ -9,7 +9,7 @@ run:
 	PYGAME_HIDE_SUPPORT_PROMPT=1 $(VENV_BIN)/python3 fly_in.py $(MAP)
 
 debug:
-	python3 -m pdb fly_in.py
+	$(VENV_BIN)/python3 -m pdb fly_in.py $(MAP)
 
 clean:
 	rm -rf __pycache__ .mypy_cache .pytest_cache graph_pac/.mypy_cache
@@ -17,9 +17,9 @@ clean:
 	find . -type f -name "*.pyc" -delete
 
 lint:
-	$(VENV_BIN)/flake8 */*.py *.py
+	$(VENV_BIN)/flake8 .
 	$(VENV_BIN)/mypy --warn-return-any --warn-unused-ignores --ignore-missing-imports --disallow-untyped-defs \
---check-untyped-defs */*.py *.py
+--check-untyped-defs .
 
 
 .PHONY: install run

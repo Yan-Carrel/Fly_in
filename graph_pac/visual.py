@@ -94,11 +94,12 @@ class Visual:
             f"Turns: {turn}/{turns}", (50, 10),
             "TL", "white", screen)
         self.display_text(
-            f"Total drones: {self.drone_count}",
+            f"Number of drones moved: {self.nb_of_drone_moved[turn]}",
             (50, 30), "TL", "white", screen)
         self.display_text(
-            f"Number of drones moved: {self.nb_of_drone_moved[turn]}",
+            f"Total drones: {self.drone_count}",
             (50, 50), "TL", "white", screen)
+
         self.display_text(
             f"Total cost: {self.total_cost}",
             (400, 10), "TL", "white", screen)
