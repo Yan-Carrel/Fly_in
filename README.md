@@ -29,6 +29,93 @@ that:
 The result is displayed both as a turn-by-turn textual log and as an
 animated graphical simulation.
 
+## Map format
+
+Fly-in reads and validates a text map describing the drone network. Blank lines are ignored, and any line beginning with `#` is treated as a comment.
+
+Each map specifies:
+
+- The number of drones.
+- A single start hub and a single end hub.
+- Intermediate hubs.
+- Directed connections between hubs.
+- Optional metadata for both hubs and connections.
+
+A valid map file looks like this:
+
+```text
+# Easy Level 1: Simple linear path
+nb_drones: 2
+
+start_hub: start 0 0 [color=green]
+hub: waypoint1 1 0 [color=blue]
+hub: waypoint2 2 0 [color=blue]
+end_hub: goal 3 0 [color=red]
+
+connection: start-waypoint1
+connection: waypoint1-waypoint2
+connection: waypoint2-goal
+```
+
+### Comments
+
+Any line beginning with `#` is ignored by the parser and can be used to document the map.
+
+### Hub definitions
+
+Hubs are declared using one of the following keywords:
+
+```text
+start_hub: <name> <x> <y> [metadata]
+hub: <name> <x> <y> [metadata]
+end_hub: <name> <x> <y> [metadata]
+```
+
+where:
+
+- `<name>` is the unique hub identifier.
+- `<x>` and `<y>` are the hub coordinates used by the visualization.
+- `[metadata]` is optional and may contain:
+  - `color`
+  - `zone` (`normal`, `priority`, `restricted`, or `blocked`)
+  - `max_drones`
+
+If no `zone` is specified, the hub is considered `normal`.
+
+### Connections
+
+Connections are declared as:
+
+```text
+connection: <from>-<to> [metadata]
+```
+
+For example:
+
+```text
+connection: start-waypoint1
+connection: waypoint1-waypoint2 [max_link_capacity=2]
+connection: waypoint2-goal [max_link_capacity=3]
+```
+
+Connection metadata is optional. Currently, the supported metadata is:
+
+- `max_link_capacity` — the maximum number of drones allowed to traverse the connection during the same simulation turn.
+
+During parsing, Fly-in validates the entire map before the simulation starts, ensuring that hub names are unique, connections reference existing hubs, metadata values are valid, and the overall map is structurally consistent.
+
+#### Default values
+
+If metadata is omitted, the parser applies the following defaults:
+
+- **Hubs**
+  - `zone = normal`
+  - `max_drones = 1`
+  - For `start_hub` and `end_hub`, if `max_drones` is not specified, it defaults to the total number of drones (`nb_drones`).
+
+- **Connections**
+  - `max_link_capacity = 1`
+
 ## Project structure
 
 ```
@@ -72,13 +159,12 @@ cp env.example .env
 
 Relevant variables:
 
-| Variable          | Purpose                                     |
-|-------------------|----------------------------------------------|
-| `MAP`             | Default map file used when no argument is given |
-| `WINDOW_WIDTH`    | Window width in pixels (falls back to full screen if unset) |
-| `WINDOW_HEIGHT`   | Window height in pixels (falls back to full screen if unset) |
-| `FRAMES_PER_TURN` | How many animation frames one simulation turn spans |
-| `BACKGROUND`      | Window background color (falls back to a default if unset) |
+| Variable | Purpose |
+|----------|---------|
+| `MAP` | Default map file used when no map is provided. |
+| `FULLSCREEN` | `TRUE` to run in fullscreen mode, `FALSE` to use a windowed display. |
+| `FRAMES_PER_TURN` | Number of animation frames used to display a single simulation turn. |
+| `BACKGROUND` | Background color of the visualization (any valid web color name). |
 
 ### Makefile targets
 
@@ -101,6 +187,47 @@ make run MAP=maps/medium/01_dead_end_trap.txt
 ```
 
 If `MAP` is omitted, the map defined by `MAP` in `.env` is used instead.
+
+## Expected output
+
+When the simulation starts, it prints the drones' movements turn by turn in the terminal while simultaneously displaying the animated `pygame` visualization.
+
+For example, running the **Easy 01 – Linear path** map produces the following movement log:
+
+```text
+D1-waypoint1
+D1-waypoint2 D2-waypoint1
+D1-goal D2-waypoint2
+D2-goal
+```
+
+Each line represents one simulation turn, and each movement is formatted as:
+
+```text
+D<id>-<destination>
+```
+
+or, when entering a restricted zone:
+
+```text
+D<id>-<origin>-<destination>
+```
+
+The second format indicates that the drone has started traversing a **restricted** zone, which requires **two simulation turns** to complete. During this transit the drone cannot stop or wait until it reaches the destination hub.
+
+In the graphical visualization:
+
+- **Colored circles** represent hubs.
+- **Red connections** indicate that the destination hub is a **restricted** zone (a two-turn movement).
+- Drone sprites move smoothly between hubs according to the movement cost.
+- Hub labels display the current number of drones occupying each hub.
+- A statistics overlay shows the current turn and other simulation metrics.
+
+## Controls
+
+| Key | Action |
+|-----|--------|
+| `Esc` | Exit the simulation. |
 
 ## Algorithm choices and implementation strategy
 
