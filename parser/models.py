@@ -63,7 +63,7 @@ class ConnectionModel(BaseModel):
     """Connection model that validate all connection's related datas."""
 
     connection: str = Field(min_length=1)
-    metadata: Optional[int] = Field(default=1)
+    metadata: Optional[int] = Field(default=1, le=50)
 
     @model_validator(mode='after')
     def validate_model(self) -> Self:
@@ -71,7 +71,7 @@ class ConnectionModel(BaseModel):
         if "-" not in self.connection:
             raise ValueError(
                 "Error: Invalid format. Usage: "
-                "<name1>-<name2> <metadata>"
+                "connection: <name1>-<name2> <metadata>"
                 )
         if self.metadata is not None and self.metadata <= 0:
             raise ValueError(
@@ -91,7 +91,7 @@ class ConnectionModel(BaseModel):
 class MapModel(BaseModel):
     """Map model that validate all map's related datas."""
 
-    drone_count: int = Field(...)
+    drone_count: int = Field(ge=1, le=50)
     start_hub: HubModel = Field(...)
     end_hub: HubModel = Field(...)
     hubs: list[HubModel] = Field(...)

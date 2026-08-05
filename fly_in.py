@@ -42,7 +42,6 @@ if __name__ == "__main__":
             )
 
         for i in range(1, len(visual.formatted_routes) + 1):
-            print(" ".join(visual.formatted_routes[i]))
             visual.total_cost += len(visual.formatted_routes[i])
             if any(
                 graph.end_hub.name in element

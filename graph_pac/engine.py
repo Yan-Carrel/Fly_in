@@ -52,22 +52,32 @@ class Engine:
         pygame.init()
         monitor_info = pygame.display.Info()
 
-        try:
-            width = int(os.getenv("WINDOW_WIDTH") or "")
-            height = int(os.getenv("WINDOW_HEIGHT") or "")
-            self.visual.win_width = width
-            self.visual.win_height = height
-            self.visual.build_layout()
-            self.screen = pygame.display.set_mode([width, height])
-        except Exception:
-            width = monitor_info.current_w
-            height = monitor_info.current_h
-            self.visual.win_width = width
-            self.visual.win_height = height
+        desktop_width = monitor_info.current_w
+        desktop_height = monitor_info.current_h
 
+        fullscreen = os.getenv("FULLSCREEN", "FALSE").upper() == "TRUE"
+
+        if fullscreen:
+            width = desktop_width
+            height = desktop_height
+
+            self.visual.win_width = width
+            self.visual.win_height = height
             self.visual.build_layout()
+
             self.screen = pygame.display.set_mode(
-                (width, height), pygame.FULLSCREEN)
+                (width, height),
+                pygame.FULLSCREEN
+            )
+        else:
+            width = int(desktop_width * 0.8)
+            height = int(desktop_height * 0.8)
+
+            self.visual.win_width = width
+            self.visual.win_height = height
+            self.visual.build_layout()
+
+            self.screen = pygame.display.set_mode((width, height))
 
         layout = self.visual.layout
         assert layout is not None
@@ -105,6 +115,10 @@ class Engine:
                     if event.key == pygame.K_ESCAPE:
                         self.running = False
 
+            routes = self.visual.formatted_routes
+            assert routes is not None
+            if self.frame == 1:
+                print(" ".join(routes[self.turn]))
             self.frame += 1
 
             self.screen.fill(self.background_color)
@@ -126,6 +140,8 @@ class Engine:
             visual = self.visual
             layout = visual.layout
             assert layout is not None
+            routes = visual.formatted_routes
+            assert routes is not None
 
             for i in range(1, visual.drone_count + 1):
                 if visual.drone_finished_move[i]:
@@ -144,18 +160,32 @@ class Engine:
                     (target_hub.x, target_hub.y)
                 )
 
-            routes = visual.formatted_routes
-            assert routes is not None
             if self.turn < len(routes):
                 self.turn += 1
+                print(" ".join(routes[self.turn]))
 
         routes = self.visual.formatted_routes
         assert routes is not None
+        win_width = self.visual.win_width
+        win_height = self.visual.win_height
+        assert win_width is not None
+        assert win_height is not None
 
         self.visual.draw_hubs(self.turn, self.screen)
         self.visual.draw_connections(self.screen)
         self.visual.draw_drones(
             self.screen, self.small_img, self.turn,
             self.frames_per_turn, self.previous_frame, self.frame)
+        pygame.draw.rect(
+            self.screen,
+            (28, 32, 38),
+            (0, 0, win_width, 100))
+        pygame.draw.line(
+            self.screen,
+            (90, 90, 90),
+            (0, 100),
+            (win_width, 100),
+            2
+        )
         self.visual.simulation_text(
             self.turn, len(routes), self.screen)

@@ -90,22 +90,35 @@ class Visual:
         screen: pygame.Surface
             ) -> None:
         """Responsible for displaying statistics and metrics."""
+        pg = self._require_pygame()
         self.display_text(
-            f"Turns: {turn}/{turns}", (50, 10),
+            "Simulation", (50, 10),
+            "TL", "white", screen)
+        pg.draw.line(
+            screen,
+            (255, 255, 255),
+            (40, 27),
+            (490, 27),
+            2
+        )
+        self.display_text(
+            "Performance", (400, 10),
+            "TL", "white", screen)
+        self.display_text(
+            f"Turns: {turn}/{turns}", (50, 30),
             "TL", "white", screen)
         self.display_text(
             f"Number of drones moved: {self.nb_of_drone_moved[turn]}",
-            (50, 30), "TL", "white", screen)
+            (50, 50), "TL", "white", screen)
         self.display_text(
             f"Total drones: {self.drone_count}",
-            (50, 50), "TL", "white", screen)
-
+            (50, 70), "TL", "white", screen)
         self.display_text(
             f"Total cost: {self.total_cost}",
-            (400, 10), "TL", "white", screen)
+            (400, 50), "TL", "white", screen)
         self.display_text(
             f"Average turn: {self.average_turn}",
-            (400, 30), "TL", "white", screen)
+            (400, 70), "TL", "white", screen)
 
     def display_text(
         self, text: str, pos: tuple[float, float],
