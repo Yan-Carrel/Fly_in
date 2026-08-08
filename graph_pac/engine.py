@@ -114,6 +114,12 @@ class Engine:
                 elif event.type == pygame.KEYDOWN:
                     if event.key == pygame.K_ESCAPE:
                         self.running = False
+                    if event.key == pygame.K_t:
+                        if self.visual.display_all_labels:
+                            self.visual.display_all_labels = False
+                        else:
+                            self.visual.display_all_labels = True
+            mouse_pos = pygame.mouse.get_pos()
 
             routes = self.visual.formatted_routes
             assert routes is not None
@@ -122,11 +128,11 @@ class Engine:
             self.frame += 1
 
             self.screen.fill(self.background_color)
-            self.render()
+            self.render(mouse_pos)
             pygame.display.flip()
         pygame.quit()
 
-    def render(self) -> None:
+    def render(self, mouse_pos: tuple[int, int]) -> None:
         """Advance the turn if enough frames have elapsed, then draw frame.
 
         Turn advancement ticks forward any drones mid multi-turn move and
@@ -171,7 +177,7 @@ class Engine:
         assert win_width is not None
         assert win_height is not None
 
-        self.visual.draw_hubs(self.turn, self.screen)
+        self.visual.draw_hubs(mouse_pos, self.turn, self.screen)
         self.visual.draw_connections(self.screen)
         self.visual.draw_drones(
             self.screen, self.small_img, self.turn,

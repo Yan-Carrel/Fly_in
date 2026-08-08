@@ -47,6 +47,9 @@ class Visual:
         self.nb_of_drone_moved: dict[int, int] = {}
         self.total_cost = 0
         self.average_turn = 0.0
+        self.display_all_labels = False
+        self.draw_labels = [
+            self.graph.start_hub.name, self.graph.end_hub.name]
 
     def _require_layout(self) -> "Layout":
         """Return the built layout, or raise if it isn't ready yet."""
@@ -139,7 +142,10 @@ class Visual:
 
         screen.blit(text_surface, text_rect)
 
-    def draw_hubs(self, turn: int, screen: pygame.Surface) -> None:
+    def draw_hubs(
+        self, mouse_pos: tuple[int, int],
+        turn: int, screen: pygame.Surface
+            ) -> None:
         """Draw every hub as a circle and label with name and occupancy."""
         layout = self._require_layout()
         pg = self._require_pygame()
@@ -147,14 +153,21 @@ class Visual:
         for hub in self.graph.hubs:
             center_x, center_y = layout.position((hub.x, hub.y))
             circle_radius = 6
+            ver_dst = (mouse_pos[1] - center_y) ** 2
+            hor_dst = (mouse_pos[0] - center_x) ** 2
+            distance_squared = hor_dst + ver_dst
+            radius_squared = circle_radius ** 2
 
             pg.draw.circle(
                 screen, self._hub_color(hub),
                 (center_x, center_y), circle_radius, 0)
-
-            self.display_text(
-                hub.name, (center_x, center_y - circle_radius),
-                "MB", "white", screen)
+            if (
+                hub.name in self.draw_labels or self.display_all_labels or
+                distance_squared <= radius_squared
+                    ):
+                self.display_text(
+                    hub.name, (center_x, center_y - circle_radius),
+                    "MB", "white", screen)
 
             self.display_text(
                 self._occupancy_label(hub, turn),
