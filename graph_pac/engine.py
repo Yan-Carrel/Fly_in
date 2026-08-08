@@ -70,8 +70,8 @@ class Engine:
                 pygame.FULLSCREEN
             )
         else:
-            width = int(desktop_width * 0.8)
-            height = int(desktop_height * 0.8)
+            width = int(desktop_width * 0.7)
+            height = int(desktop_height * 0.7)
 
             self.visual.win_width = width
             self.visual.win_height = height

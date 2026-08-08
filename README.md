@@ -228,6 +228,7 @@ In the graphical visualization:
 | Key | Action |
 |-----|--------|
 | `Esc` | Exit the simulation. |
+| `T` | Show/hide hub's labels. |
 
 ## Algorithm choices and implementation strategy
 

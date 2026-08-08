@@ -19,6 +19,8 @@ class MapParser:
         self.filename: str = filename
         self.connections: list[ConnectionModel] = []
         self.hubs: list[HubModel] = []
+        self.start_hub: HubModel | None = None
+        self.end_hub: HubModel | None = None
 
     def parse(self) -> MapModel:
         """Act as a function responsible for parsing all datas from map."""
@@ -30,6 +32,8 @@ class MapParser:
 
         hubs = []
         connections = []
+        self.start_hub = None
+        self.end_hub = None
 
         for line in lines:
             line = line.strip()
@@ -63,6 +67,11 @@ class MapParser:
         self.parse_hub(hubs)
         self.parse_connections(connections)
 
+        if self.start_hub is None:
+            sys.exit("Error: missing start_hub definition")
+        if self.end_hub is None:
+            sys.exit("Error: missing end_hub definition")
+
         try:
             _map = MapModel(
                 drone_count=self.drone_count,
@@ -79,7 +88,7 @@ class MapParser:
         """Parse name, x and y coordinates and metadata."""
         for hub in hubs:
             hub_type, value = list(hub.items())[0]
-            parts = value.strip().split(" ")
+            parts = value.strip().split()
             if len(parts) < 3:
                 print(
                     f"Error: invalid hub format for '{hub}'. "
@@ -109,17 +118,15 @@ class MapParser:
             metadata: dict[str, Any] = {}
             if len(parts) >= 4:
                 metadata_list = parts[3:]
-                if '[' not in parts[3] or ']' not in parts[-1]:
-                    print(
-                        "Error, metadata should be inside square brackets: "
-                        f"'{" ".join(parts[3:])}'"
-                        )
-                    sys.exit(0)
-
                 for meta in metadata_list:
+                    if not meta.startswith("[") or not meta.endswith("]"):
+                        print(
+                            "Error, metadata should be inside square brackets: "
+                            f"'{' '.join(parts[3:])}'"
+                            )
+                        sys.exit(0)
                     try:
-                        meta_key, meta_value = meta.replace(
-                            "[", "").replace("]", "").split('=')
+                        meta_key, meta_value = meta[1:-1].split('=', 1)
                     except ValueError:
                         print(
                             "Error: metadata should be in 'key=value' format")
@@ -138,13 +145,20 @@ class MapParser:
             elif len(parts) == 3:
                 metadata = {"max_drones": 1}
 
+            if any(existing_hub.name == name for existing_hub in self.hubs):
+                sys.exit(f"Error: hub '{name}' is already defined")
+
             try:
                 new_hub = HubModel(
                     name=name, x=x, y=y, metadata=metadata)
                 self.hubs.append(new_hub)
                 if hub_type == "start_hub":
+                    if self.start_hub is not None:
+                        sys.exit("Error: multiple start_hub definitions")
                     self.start_hub = new_hub
                 elif hub_type == "end_hub":
+                    if self.end_hub is not None:
+                        sys.exit("Error: multiple end_hub definitions")
                     self.end_hub = new_hub
             except ValidationError as e:
                 sys.exit(e.errors()[0]['msg'])
@@ -155,22 +169,21 @@ class MapParser:
         Loop, format, and verify each value and get.
         """
         for connection in connections:
-            connec_parts = connection.strip().split(" ")
+            connec_parts = connection.strip().split()
 
             if len(connec_parts) == 1:
                 connec_metadata = 1
             elif len(connec_parts) == 2:
                 raw_metadata = connec_parts[1]
-                if '[' not in raw_metadata or ']' not in raw_metadata:
+                if not raw_metadata.startswith("[") or not raw_metadata.endswith("]"):
 
                     print(
                         "Error, metadata should be in 'key=value'"
                         f" format: {connec_parts}")
                     sys.exit(0)
-                raw_metadata = raw_metadata.replace(
-                    "[", "").replace("]", "")
+                raw_metadata = raw_metadata[1:-1]
 
-                if raw_metadata.split("=")[0] != "max_link_capacity":
+                if raw_metadata.split("=", 1)[0] != "max_link_capacity":
                     print(
                         "Error, 'max_link_capacity' is the only valid metadata"
                         f" for connection: '{connection}'"
@@ -182,7 +195,7 @@ class MapParser:
                         f"Error: Invalid metadata format '{raw_metadata}'")
 
                 try:
-                    key, value = raw_metadata.split("=")
+                    key, value = raw_metadata.split("=", 1)
                 except Exception:
                     print(
                         "Error: Invalid metadata"

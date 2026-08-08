@@ -101,9 +101,20 @@ class Visual:
             screen,
             (255, 255, 255),
             (40, 27),
-            (490, 27),
+            (830, 27),
             2
         )
+
+        self.display_text(
+            "Key inputs", (750, 10),
+            "TL", "white", screen)
+        self.display_text(
+            "Escape - Quit", (750, 30),
+            "TL", "white", screen)
+        self.display_text(
+            "T - Toggle display labels", (750, 50),
+            "TL", "white", screen)
+
         self.display_text(
             "Performance", (400, 10),
             "TL", "white", screen)
@@ -118,10 +129,10 @@ class Visual:
             (50, 70), "TL", "white", screen)
         self.display_text(
             f"Total cost: {self.total_cost}",
-            (400, 50), "TL", "white", screen)
+            (400, 30), "TL", "white", screen)
         self.display_text(
             f"Average turn: {self.average_turn}",
-            (400, 70), "TL", "white", screen)
+            (400, 50), "TL", "white", screen)
 
     def display_text(
         self, text: str, pos: tuple[float, float],
