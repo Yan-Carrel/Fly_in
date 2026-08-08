@@ -28,7 +28,8 @@ class MapParser:
             with open(self.filename, "r") as file:
                 lines = file.read().splitlines()
         except FileNotFoundError:
-            sys.exit(f"Error: map '{self.filename}' was not found")
+            print(f"Error: map '{self.filename}' was not found")
+            sys.exit(0)
 
         hubs = []
         connections = []
@@ -61,16 +62,17 @@ class MapParser:
 
         if self.drone_count > self.max_nb_of_drone:
             print(
-                "Error, the maximum number of drones"
-                f" is {self.max_nb_of_drone}")
+                "Error, the number of drones exceeds the maximum value.")
             sys.exit(0)
         self.parse_hub(hubs)
         self.parse_connections(connections)
 
         if self.start_hub is None:
-            sys.exit("Error: missing start_hub definition")
+            print("Error: missing start_hub definition")
+            sys.exit(0)
         if self.end_hub is None:
-            sys.exit("Error: missing end_hub definition")
+            print("Error: missing end_hub definition")
+            sys.exit(0)
 
         try:
             _map = MapModel(
@@ -82,7 +84,8 @@ class MapParser:
                 )
             return _map
         except ValidationError as e:
-            sys.exit(e.errors()[0]['msg'])
+            print(e.errors()[0]['msg'])
+            sys.exit(0)
 
     def parse_hub(self, hubs: list[dict[str, str]]) -> None:
         """Parse name, x and y coordinates and metadata."""
@@ -117,16 +120,21 @@ class MapParser:
 
             metadata: dict[str, Any] = {}
             if len(parts) >= 4:
-                metadata_list = parts[3:]
-                for meta in metadata_list:
-                    if not meta.startswith("[") or not meta.endswith("]"):
-                        print(
-                            "Error, metadata should be inside square brackets: "
-                            f"'{' '.join(parts[3:])}'"
-                            )
-                        sys.exit(0)
+                metadata_text = " ".join(parts[3:])
+                if (
+                    not metadata_text.startswith("[")
+                    or not metadata_text.endswith("]")
+                        ):
+                    print(
+                        "Error, invalid metadata: "
+                        f"'{metadata_text}'"
+                        )
+                    sys.exit(0)
+
+                metadata_items = metadata_text[1:-1].split()
+                for meta in metadata_items:
                     try:
-                        meta_key, meta_value = meta[1:-1].split('=', 1)
+                        meta_key, meta_value = meta.split('=', 1)
                     except ValueError:
                         print(
                             "Error: metadata should be in 'key=value' format")
@@ -138,15 +146,17 @@ class MapParser:
                 if not max_drones:
                     metadata["max_drones"] = self.drone_count
                 elif int(max_drones) != self.drone_count:
-                    sys.exit(
+                    print(
                         "Error, the 'max_drones' value should be equal to "
                         "the total number of drones in "
                         "starting and ending hubs.")
+                    sys.exit(0)
             elif len(parts) == 3:
                 metadata = {"max_drones": 1}
 
             if any(existing_hub.name == name for existing_hub in self.hubs):
-                sys.exit(f"Error: hub '{name}' is already defined")
+                print(f"Error: hub '{name}' is already defined")
+                sys.exit(0)
 
             try:
                 new_hub = HubModel(
@@ -154,14 +164,17 @@ class MapParser:
                 self.hubs.append(new_hub)
                 if hub_type == "start_hub":
                     if self.start_hub is not None:
-                        sys.exit("Error: multiple start_hub definitions")
+                        print("Error: multiple start_hub definitions")
+                        sys.exit(0)
                     self.start_hub = new_hub
                 elif hub_type == "end_hub":
                     if self.end_hub is not None:
-                        sys.exit("Error: multiple end_hub definitions")
+                        print("Error: multiple end_hub definitions")
+                        sys.exit(0)
                     self.end_hub = new_hub
             except ValidationError as e:
-                sys.exit(e.errors()[0]['msg'])
+                print(e.errors()[0]['msg'])
+                sys.exit(0)
 
     def parse_connections(self, connections: list[str]) -> None:
         """Parse connections, get and check formats.
@@ -175,7 +188,10 @@ class MapParser:
                 connec_metadata = 1
             elif len(connec_parts) == 2:
                 raw_metadata = connec_parts[1]
-                if not raw_metadata.startswith("[") or not raw_metadata.endswith("]"):
+                if (
+                    not raw_metadata.startswith("[")
+                    or not raw_metadata.endswith("]")
+                        ):
 
                     print(
                         "Error, metadata should be in 'key=value'"
@@ -191,8 +207,9 @@ class MapParser:
                     sys.exit(0)
 
                 if "=" not in raw_metadata:
-                    sys.exit(
+                    print(
                         f"Error: Invalid metadata format '{raw_metadata}'")
+                    sys.exit(0)
 
                 try:
                     key, value = raw_metadata.split("=", 1)
