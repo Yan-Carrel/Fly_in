@@ -186,12 +186,12 @@ class Engine:
         pygame.draw.rect(
             self.screen,
             (28, 32, 38),
-            (0, 0, win_width, 100))
+            (0, 0, win_width, 90))
         pygame.draw.line(
             self.screen,
             (90, 90, 90),
-            (0, 100),
-            (win_width, 100),
+            (0, 90),
+            (win_width, 90),
             2
         )
         self.visual.simulation_text(
