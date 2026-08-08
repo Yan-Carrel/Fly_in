@@ -111,7 +111,7 @@ class MapParser:
             except ValueError:
                 print(
                     "Error, x and/or y are missings or invalids: "
-                    f"'{" ".join(parts)}'")
+                    f"'{' '.join(parts)}'")
                 sys.exit(0)
 
             if x > 30 or x < -30 or y > 30 or y < -30:

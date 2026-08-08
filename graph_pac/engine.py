@@ -102,7 +102,8 @@ class Engine:
         try:
             self.drone_img = pygame.image.load("drone.png")
         except FileNotFoundError:
-            sys.exit("Error, drone.img file not found.")
+            print("Error, drone.img file not found.")
+            sys.exit(0)
         self.small_img = pygame.transform.scale(self.drone_img, (20, 20))
 
     def run(self) -> None:

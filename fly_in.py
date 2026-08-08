@@ -17,7 +17,8 @@ if __name__ == "__main__":
     args = sys.argv
     map_filename = args[1] if len(args) == 2 else os.getenv("MAP")
     if not map_filename:
-        sys.exit("Error: map not found. Please choose a filename in .env")
+        print("Error: map not found. Please choose a filename in .env")
+        sys.exit(0)
     map_parser = parser.MapParser(map_filename)
 
     graph = graph_pac.Graph(map_parser.parse())
