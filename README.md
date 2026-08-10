@@ -173,7 +173,6 @@ make install      # install dependencies
 make run          # run the simulation on the default/configured map
 make debug        # run under pdb
 make lint         # flake8 . and mypy with the required flags
-make lint-strict  # flake8 . and mypy --strict
 make clean        # remove __pycache__, .mypy_cache, etc.
 ```
 
