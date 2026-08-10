@@ -2,6 +2,7 @@
 from parser.models import HubModel, ConnectionModel, MapModel
 from typing import Any
 from pydantic import ValidationError
+from collections import Counter
 import sys
 
 
@@ -37,6 +38,9 @@ class MapParser:
         self.end_hub = None
 
         for line in lines:
+            if "  " in line:
+                print(f"Error, too many spaces in line: {line}")
+                sys.exit(0)
             line = line.strip()
             if not line or line.startswith("#"):
                 continue
@@ -117,7 +121,6 @@ class MapParser:
             if x > 30 or x < -30 or y > 30 or y < -30:
                 print("Error, x and y coordinates might exceed the limits")
                 sys.exit(0)
-
             metadata: dict[str, Any] = {}
             if len(parts) >= 4:
                 metadata_text = " ".join(parts[3:])
@@ -130,8 +133,16 @@ class MapParser:
                         f"'{metadata_text}'"
                         )
                     sys.exit(0)
+                count = Counter(metadata_text)
+                if (
+                    count["zone="] > 1 or count["max_link_capacity="] > 1
+                    or count["color="] > 1 or count["maxdrones="] > 1
+                        ):
+                    print(f"Error, cannot define the same metadata twice: {metadata_text}")
+                    sys.exit(0)
 
                 metadata_items = metadata_text[1:-1].split()
+                meta_keys = []
                 for meta in metadata_items:
                     try:
                         meta_key, meta_value = meta.split('=', 1)
@@ -139,13 +150,17 @@ class MapParser:
                         print(
                             "Error: metadata should be in 'key=value' format")
                         sys.exit(0)
+                    if meta_key in meta_keys:
+                        print(f"Error, cannot define the same metadata twice: {meta_key}")
+                        sys.exit(0)
+                    meta_keys.append(meta_key)
                     metadata[meta_key] = meta_value
 
             if hub_type == "start_hub" or hub_type == "end_hub":
                 max_drones = metadata.get("max_drones", None)
                 if not max_drones:
                     metadata["max_drones"] = self.drone_count
-                elif int(max_drones) != self.drone_count:
+                elif int(max_drones) < self.drone_count:
                     print(
                         "Error, the 'max_drones' value should be equal to "
                         "the total number of drones in "
@@ -172,6 +187,13 @@ class MapParser:
                         print("Error: multiple end_hub definitions")
                         sys.exit(0)
                     self.end_hub = new_hub
+                if any([
+                    True for h in self.hubs if new_hub.x == h.x and
+                    new_hub.y == h.y and h != new_hub]
+                        ):
+                    print("Error, two different hubs "
+                    "cannot have the same coordinates")
+                    sys.exit(0)
             except ValidationError as e:
                 print(e.errors()[0]['msg'])
                 sys.exit(0)
