@@ -40,6 +40,7 @@ class Engine:
         self.previous_frame = 0
         self.frames_per_turn = 600
         self.turn = 1
+        self.paused = False
 
     def initialize_pygame(self) -> None:
         """Set up the pygame window, drone assets, and per-drone initial state.
@@ -115,18 +116,21 @@ class Engine:
                 elif event.type == pygame.KEYDOWN:
                     if event.key == pygame.K_ESCAPE:
                         self.running = False
-                    if event.key == pygame.K_t:
+                    elif event.key == pygame.K_t:
                         if self.visual.display_all_labels:
                             self.visual.display_all_labels = False
                         else:
                             self.visual.display_all_labels = True
+                    elif event.key == pygame.K_p:
+                        self.paused = not self.paused
             mouse_pos = pygame.mouse.get_pos()
 
             routes = self.visual.formatted_routes
             assert routes is not None
             if self.frame == 1:
                 print(" ".join(routes[self.turn]))
-            self.frame += 1
+            if not self.paused:
+                self.frame += 1
 
             self.screen.fill(self.background_color)
             self.render(mouse_pos)
@@ -169,7 +173,7 @@ class Engine:
 
             if self.turn < len(routes):
                 self.turn += 1
-                print(" ".join(routes[self.turn]))
+                print(" ".join(routes.get(self.turn, [])))
 
         routes = self.visual.formatted_routes
         assert routes is not None

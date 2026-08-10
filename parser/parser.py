@@ -1,6 +1,6 @@
 """Module responsible for parsing by reading map file."""
 from parser.models import HubModel, ConnectionModel, MapModel
-from typing import Any
+from typing import Any, NoReturn
 from pydantic import ValidationError
 from collections import Counter
 import sys
@@ -23,24 +23,30 @@ class MapParser:
         self.start_hub: HubModel | None = None
         self.end_hub: HubModel | None = None
 
+    def _fail(self, message: str, line_no: int | None = None) -> NoReturn:
+        """Print an error message, optionally annotated with a line number."""
+        if line_no is None:
+            print(message)
+        else:
+            print(f"Error on line {line_no}: {message}")
+        sys.exit(0)
+
     def parse(self) -> MapModel:
         """Act as a function responsible for parsing all datas from map."""
         try:
             with open(self.filename, "r") as file:
                 lines = file.read().splitlines()
         except FileNotFoundError:
-            print(f"Error: map '{self.filename}' was not found")
-            sys.exit(0)
+            self._fail(f"Error: map '{self.filename}' was not found")
 
-        hubs = []
-        connections = []
+        hubs: list[tuple[int, str, str]] = []
+        connections: list[tuple[int, str]] = []
         self.start_hub = None
         self.end_hub = None
 
-        for line in lines:
+        for line_no, line in enumerate(lines, start=1):
             if "  " in line:
-                print(f"Error, too many spaces in line: {line}")
-                sys.exit(0)
+                self._fail(f"Error, too many spaces in line: {line}", line_no)
             line = line.strip()
             if not line or line.startswith("#"):
                 continue
@@ -48,35 +54,46 @@ class MapParser:
                 try:
                     self.drone_count = int(line.split(':')[1])
                 except ValueError:
-                    print(f"Error, invalid line format: '{line}'.\n")
-                    sys.exit(0)
+                    self._fail(
+                        f"Error, invalid line format: '{line}'.\n", line_no)
             elif line.startswith("connection: "):
                 hub_line = line.split(':')[1].strip()
-                connections.append(hub_line)
+                connections.append((line_no, hub_line))
             elif (
                     line.startswith("hub: ") or
                     line.startswith("start_hub: ") or
                     line.startswith("end_hub: ")):
                 key, value = line.split(':')
-                hubs.append({key: value})
+                hubs.append((line_no, key, value))
 
             else:
-                print(f"Error, invalid line format: '{line}'")
-                sys.exit(0)
+                self._fail(f"Error, invalid line format: '{line}'", line_no)
 
         if self.drone_count > self.max_nb_of_drone:
-            print(
+            self._fail(
                 "Error, the number of drones exceeds the maximum value.")
-            sys.exit(0)
         self.parse_hub(hubs)
         self.parse_connections(connections)
 
+        hub_names = {hub.name for hub in self.hubs}
+        for line_no, connection in connections:
+            name1, name2 = connection.split("-")
+            if name1 not in hub_names:
+                self._fail(
+                    f"Hub with name '{name1}' is not recognized",
+                    line_no)
+            if name2 not in hub_names:
+                self._fail(
+                    f"Hub with name '{name2}' is not recognized",
+                    line_no)
+
         if self.start_hub is None:
-            print("Error: missing start_hub definition")
-            sys.exit(0)
+            self._fail("Error: missing start_hub definition")
         if self.end_hub is None:
-            print("Error: missing end_hub definition")
-            sys.exit(0)
+            self._fail("Error: missing end_hub definition")
+
+        assert self.start_hub is not None
+        assert self.end_hub is not None
 
         try:
             _map = MapModel(
@@ -88,39 +105,39 @@ class MapParser:
                 )
             return _map
         except ValidationError as e:
-            print(e.errors()[0]['msg'])
-            sys.exit(0)
+            self._fail(e.errors()[0]['msg'])
 
-    def parse_hub(self, hubs: list[dict[str, str]]) -> None:
+    def parse_hub(self, hubs: list[tuple[int, str, str]]) -> None:
         """Parse name, x and y coordinates and metadata."""
-        for hub in hubs:
-            hub_type, value = list(hub.items())[0]
+        for line_no, hub_type, value in hubs:
             parts = value.strip().split()
             if len(parts) < 3:
-                print(
-                    f"Error: invalid hub format for '{hub}'. "
-                    "Usage: <name> <x> <y> <metadata>")
-                sys.exit(0)
+                self._fail(
+                    f"Error: invalid hub format for '{value}'. "
+                    "Usage: <type>: <name> <x> <y> <metadata>,"
+                    "start_hub, end_hub and hub are the only valid types",
+                    line_no)
             try:
                 name, x_raw, y_raw = parts[0:3]
             except Exception:
-                print(
-                    "Error: invalid hub format. "
-                    "Usage: <name> <x> <y> <metadata>")
-                sys.exit(0)
+                self._fail(
+                    f"Error: invalid hub format for '{value}'. "
+                    "Usage: <type>: <name> <x> <y> <metadata>,"
+                    "start_hub, end_hub and hub are the only valid types",
+                    line_no)
 
             try:
                 x = int(x_raw)
                 y = int(y_raw)
             except ValueError:
-                print(
+                self._fail(
                     "Error, x and/or y are missings or invalids: "
-                    f"'{' '.join(parts)}'")
-                sys.exit(0)
+                    f"'{' '.join(parts)}'", line_no)
 
             if x > 30 or x < -30 or y > 30 or y < -30:
-                print("Error, x and y coordinates might exceed the limits")
-                sys.exit(0)
+                self._fail(
+                    "Error, x and y coordinates might exceed the limits",
+                    line_no)
             metadata: dict[str, Any] = {}
             if len(parts) >= 4:
                 metadata_text = " ".join(parts[3:])
@@ -128,18 +145,19 @@ class MapParser:
                     not metadata_text.startswith("[")
                     or not metadata_text.endswith("]")
                         ):
-                    print(
+                    self._fail(
                         "Error, invalid metadata: "
-                        f"'{metadata_text}'"
-                        )
-                    sys.exit(0)
+                        f"'{metadata_text}'",
+                        line_no)
                 count = Counter(metadata_text)
                 if (
                     count["zone="] > 1 or count["max_link_capacity="] > 1
                     or count["color="] > 1 or count["maxdrones="] > 1
                         ):
-                    print(f"Error, cannot define the same metadata twice: {metadata_text}")
-                    sys.exit(0)
+                    self._fail(
+                        "Error, cannot define the same metadata"
+                        f" twice: {metadata_text}",
+                        line_no)
 
                 metadata_items = metadata_text[1:-1].split()
                 meta_keys = []
@@ -147,12 +165,14 @@ class MapParser:
                     try:
                         meta_key, meta_value = meta.split('=', 1)
                     except ValueError:
-                        print(
-                            "Error: metadata should be in 'key=value' format")
-                        sys.exit(0)
+                        self._fail(
+                            "Error: metadata should be in 'key=value' format",
+                            line_no)
                     if meta_key in meta_keys:
-                        print(f"Error, cannot define the same metadata twice: {meta_key}")
-                        sys.exit(0)
+                        self._fail(
+                            "Error, cannot define the same "
+                            f"metadata twice: {meta_key}",
+                            line_no)
                     meta_keys.append(meta_key)
                     metadata[meta_key] = meta_value
 
@@ -161,17 +181,16 @@ class MapParser:
                 if not max_drones:
                     metadata["max_drones"] = self.drone_count
                 elif int(max_drones) < self.drone_count:
-                    print(
+                    self._fail(
                         "Error, the 'max_drones' value should be equal to "
                         "the total number of drones in "
-                        "starting and ending hubs.")
-                    sys.exit(0)
+                        "starting and ending hubs.",
+                        line_no)
             elif len(parts) == 3:
                 metadata = {"max_drones": 1}
 
             if any(existing_hub.name == name for existing_hub in self.hubs):
-                print(f"Error: hub '{name}' is already defined")
-                sys.exit(0)
+                self._fail(f"Error: hub '{name}' is already defined", line_no)
 
             try:
                 new_hub = HubModel(
@@ -179,31 +198,32 @@ class MapParser:
                 self.hubs.append(new_hub)
                 if hub_type == "start_hub":
                     if self.start_hub is not None:
-                        print("Error: multiple start_hub definitions")
-                        sys.exit(0)
+                        self._fail(
+                            "Error: multiple start_hub definitions", line_no)
                     self.start_hub = new_hub
                 elif hub_type == "end_hub":
                     if self.end_hub is not None:
-                        print("Error: multiple end_hub definitions")
-                        sys.exit(0)
+                        self._fail(
+                            "Error: multiple end_hub definitions", line_no)
                     self.end_hub = new_hub
-                if any([
-                    True for h in self.hubs if new_hub.x == h.x and
-                    new_hub.y == h.y and h != new_hub]
-                        ):
-                    print("Error, two different hubs "
-                    "cannot have the same coordinates")
-                    sys.exit(0)
+                if any(
+                    [
+                        True for h in self.hubs if new_hub.x == h.x and
+                        new_hub.y == h.y and h != new_hub]
+                            ):
+                    self._fail(
+                        "Error, two different hubs "
+                        "cannot have the same coordinates",
+                        line_no)
             except ValidationError as e:
-                print(e.errors()[0]['msg'])
-                sys.exit(0)
+                self._fail(e.errors()[0]['msg'], line_no)
 
-    def parse_connections(self, connections: list[str]) -> None:
+    def parse_connections(self, connections: list[tuple[int, str]]) -> None:
         """Parse connections, get and check formats.
 
         Loop, format, and verify each value and get.
         """
-        for connection in connections:
+        for line_no, connection in connections:
             connec_parts = connection.strip().split()
 
             if len(connec_parts) == 1:
@@ -215,46 +235,46 @@ class MapParser:
                     or not raw_metadata.endswith("]")
                         ):
 
-                    print(
+                    self._fail(
                         "Error, metadata should be in 'key=value'"
-                        f" format: {connec_parts}")
-                    sys.exit(0)
+                        f" format: {connec_parts}",
+                        line_no)
                 raw_metadata = raw_metadata[1:-1]
 
                 if raw_metadata.split("=", 1)[0] != "max_link_capacity":
-                    print(
+                    self._fail(
                         "Error, 'max_link_capacity' is the only valid metadata"
-                        f" for connection: '{connection}'"
-                        )
-                    sys.exit(0)
+                        f" for connection: '{connection}'", line_no)
 
                 if "=" not in raw_metadata:
-                    print(
-                        f"Error: Invalid metadata format '{raw_metadata}'")
-                    sys.exit(0)
+                    self._fail(
+                        f"Error: Invalid metadata format '{raw_metadata}'",
+                        line_no)
 
                 try:
                     key, value = raw_metadata.split("=", 1)
                 except Exception:
-                    print(
+                    self._fail(
                         "Error: Invalid metadata"
-                        f"format for {connec_parts[0]}")
-                    sys.exit(0)
+                        f"format for {connec_parts[0]}",
+                        line_no)
                 try:
                     connec_metadata = int(value)
                 except ValueError:
-                    print(
+                    self._fail(
                         "Error: max_link_capacity must be a "
-                        f"positive integer for {connec_parts[0]}")
-                    sys.exit(0)
+                        f"positive integer for {connec_parts[0]}",
+                        line_no)
             else:
-                print(f"Error: invalid connection format '{connection}'")
-                sys.exit(0)
+                self._fail(
+                    f"Error: invalid connection format '{connection}'",
+                    line_no)
 
             try:
                 self.connections.append(
                     ConnectionModel(
                         connection=connec_parts[0], metadata=connec_metadata))
             except ValidationError as e:
-                print(f"{e.errors()[0]['msg']}\nInput:'{connection}'")
-                sys.exit(0)
+                self._fail(
+                    f"{e.errors()[0]['msg']}\nInput:'{connection}'",
+                    line_no)

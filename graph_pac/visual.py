@@ -114,6 +114,9 @@ class Visual:
         self.display_text(
             "T - Toggle display labels", (750, 50),
             "TL", "white", screen)
+        self.display_text(
+            "P - Pause", (750, 70),
+            "TL", "white", screen)
 
         self.display_text(
             "Performance", (400, 10),
@@ -122,7 +125,7 @@ class Visual:
             f"Turns: {turn}/{turns}", (50, 30),
             "TL", "white", screen)
         self.display_text(
-            f"Number of drones moved: {self.nb_of_drone_moved[turn]}",
+            f"Number of drones moved: {self.nb_of_drone_moved.get(turn, 0)}",
             (50, 50), "TL", "white", screen)
         self.display_text(
             f"Total drones: {self.drone_count}",
@@ -211,7 +214,7 @@ class Visual:
         1 = arrived). Also labels each drone with its id, or with an
         occupancy count if it shares a hub with other drones.
         """
-        turn_moves = self._require_routes()[turn]
+        turn_moves = self._require_routes().get(turn, [])
         elapsed = frame - previous_frame
 
         for i in range(1, self.drone_count + 1):
@@ -272,7 +275,7 @@ class Visual:
         """Draw the drone's id."""
         is_settled = self.drone_finished_move[drone_id]
         current_hub = self.drone_target[drone_id]
-        drones_in_hub = self.hub_states[turn].get(current_hub.name, 0)
+        drones_in_hub = self.hub_states.get(turn, {}).get(current_hub.name, 0)
 
         if not is_settled or drones_in_hub == 1:
             self.display_text(

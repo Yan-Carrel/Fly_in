@@ -56,9 +56,9 @@ class Solver:
         """Get hubs connected to hub by reading connections in graph."""
         connections = self.graph.connections.get(hub.name, [])
         neighbors = [
-            candidate
-            for candidate in self.graph.hubs
-            if candidate.name in connections and candidate.name not in visited
+            neighbor
+            for neighbor in self.graph.hubs
+            if neighbor.name in connections and neighbor.name not in visited
         ]
 
         result: list[HubModel] = []

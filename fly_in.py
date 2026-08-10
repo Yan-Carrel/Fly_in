@@ -22,34 +22,24 @@ if __name__ == "__main__":
     map_parser = parser.MapParser(map_filename)
 
     graph = graph_pac.Graph(map_parser.parse())
-    visual = graph_pac.Visual(graph, 80, 100)
+    visual = graph_pac.Visual(graph, 80, 120)
     background = os.getenv("BACKGROUND")
     engine = graph_pac.Engine(background, visual)
 
     solver = Solver(graph)
-    route = Route(graph, solver.get_all_paths(), map_parser.drone_count)
-
-    engine.frames_per_turn = int(os.getenv("FRAMES_PER_TURN") or "600")
     paths = solver.get_all_paths()
 
     if paths != [[]]:
+        route = Route(graph, paths, map_parser.drone_count)
+
+        engine.frames_per_turn = int(os.getenv("FRAMES_PER_TURN") or "600")
+
         for i in range(1, map_parser.drone_count + 1):
             route.best_path(f"D{i}", paths)
 
         visual.drone_count = map_parser.drone_count
-        visual.formatted_routes = route.formatted_routes()
-        visual.hub_states = route.compute_hub_occupancy(
-            map_parser.drone_count, graph, visual.formatted_routes
-            )
-
-        for i in range(1, len(visual.formatted_routes) + 1):
-            visual.total_cost += len(visual.formatted_routes[i])
-            if any(
-                graph.end_hub.name in element
-                for element in visual.formatted_routes[i]
-            ):
-                visual.average_turn += i
-        visual.average_turn /= map_parser.drone_count
+        visual.formatted_routes = route.build_turn_routes()
+        visual.hub_states = route.hub_states
 
         engine.initialize_pygame()
         engine.run()
