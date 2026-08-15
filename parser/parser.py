@@ -77,7 +77,7 @@ class MapParser:
 
         hub_names = {hub.name for hub in self.hubs}
         for line_no, connection in connections:
-            name1, name2 = connection.split("-")
+            name1, name2 = connection.split(" ")[0].split("-")
             if name1 not in hub_names:
                 self._fail(
                     f"Hub with name '{name1}' is not recognized",
