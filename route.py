@@ -127,12 +127,12 @@ class Route:
         turn: int, arrival_turn: int, previous_hub: HubModel,
         current_hub: HubModel
             ) -> None:
-        """Record drone's arrival and departure from previous_hub."""
+        """Record drone's departure from previous_hub and arrival at current_hub."""
+        if hub_states[turn].get(previous_hub.name, 0) >= 1:
+            hub_states[turn][previous_hub.name] -= 1
+
         hub_states[arrival_turn][current_hub.name] = hub_states[
-            arrival_turn].get(
-            current_hub.name, 0) + 1
-        if hub_states[arrival_turn].get(previous_hub.name, 0) >= 1:
-            hub_states[arrival_turn][previous_hub.name] -= 1
+            arrival_turn].get(current_hub.name, 0) + 1
 
         link_states[turn][(previous_hub.name, current_hub.name)] = (
             link_states[turn].get(
@@ -140,11 +140,12 @@ class Route:
         )
 
         for t in hub_states:
+            if t > turn:
+                if hub_states[t].get(previous_hub.name, 0) >= 1:
+                    hub_states[t][previous_hub.name] -= 1
             if t > arrival_turn:
                 hub_states[t][current_hub.name] = 1 + hub_states[t].get(
                     current_hub.name, 0)
-                if hub_states[t].get(previous_hub.name, 0) >= 1:
-                    hub_states[t][previous_hub.name] -= 1
 
     def _hop_cost(self, hub: HubModel) -> int:
         """Compute costs on each hub to enter."""
