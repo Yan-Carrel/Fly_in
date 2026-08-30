@@ -91,7 +91,7 @@ class ConnectionModel(BaseModel):
 class MapModel(BaseModel):
     """Map model that validate all map's related datas."""
 
-    drone_count: int = Field(ge=1, le=50)
+    drone_count: int = Field(ge=1)
     start_hub: HubModel = Field(...)
     end_hub: HubModel = Field(...)
     hubs: list[HubModel] = Field(...)

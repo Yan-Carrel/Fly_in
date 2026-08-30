@@ -16,7 +16,6 @@ class MapParser:
             sys.exit(0)
 
         self.drone_count = 0
-        self.max_nb_of_drone = 50
         self.filename: str = filename
         self.connections: list[ConnectionModel] = []
         self.hubs: list[HubModel] = []
@@ -44,6 +43,7 @@ class MapParser:
         self.start_hub = None
         self.end_hub = None
 
+        found_nb_drones = False
         for line_no, line in enumerate(lines, start=1):
             if "  " in line:
                 self._fail(f"Error, too many spaces in line: {line}", line_no)
@@ -51,27 +51,29 @@ class MapParser:
             if not line or line.startswith("#"):
                 continue
             if line.startswith("nb_drones: "):
+                found_nb_drones = True
                 try:
                     self.drone_count = int(line.split(':')[1])
                 except ValueError:
                     self._fail(
                         f"Error, invalid line format: '{line}'.\n", line_no)
-            elif line.startswith("connection: "):
+            elif line.startswith("connection: ") and found_nb_drones:
                 hub_line = line.split(':')[1].strip()
                 connections.append((line_no, hub_line))
             elif (
                     line.startswith("hub: ") or
                     line.startswith("start_hub: ") or
-                    line.startswith("end_hub: ")):
+                    line.startswith("end_hub: ")) and found_nb_drones:
                 key, value = line.split(':')
                 hubs.append((line_no, key, value))
 
             else:
-                self._fail(f"Error, invalid line format: '{line}'", line_no)
+                if not found_nb_drones:
+                    self._fail(f"Error, the first configuration must"
+                    " be 'nb_drones'")
+                else:
+                    self._fail(f"Error, invalid line format: '{line}'", line_no)
 
-        if self.drone_count > self.max_nb_of_drone:
-            self._fail(
-                "Error, the number of drones exceeds the maximum value.")
         self.parse_hub(hubs)
         self.parse_connections(connections)
 
@@ -182,8 +184,8 @@ class MapParser:
                     metadata["max_drones"] = self.drone_count
                 elif int(max_drones) < self.drone_count:
                     self._fail(
-                        "Error, the 'max_drones' value should be equal to "
-                        "the total number of drones in "
+                        "Error, the 'max_drones' value can't be less "
+                        "than the total number of drones in "
                         "starting and ending hubs.",
                         line_no)
             elif len(parts) == 3:
@@ -223,8 +225,16 @@ class MapParser:
 
         Loop, format, and verify each value and get.
         """
+        connections_found = []
         for line_no, connection in connections:
             connec_parts = connection.strip().split()
+
+            if sorted(connec_parts[0].split("-")) in connections_found:
+                self._fail(
+                    f"Error, connection '{connec_parts[0]}' already exists."
+                )
+            else:
+                connections_found.append(sorted(connec_parts[0].split("-")))
 
             if len(connec_parts) == 1:
                 connec_metadata = 1
