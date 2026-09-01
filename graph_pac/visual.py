@@ -6,6 +6,7 @@ import pygame
 
 from parser import HubModel
 from .graph_cls import Graph
+from .layout import Layout
 
 
 class Visual:
@@ -38,6 +39,7 @@ class Visual:
         self.formatted_routes: Optional[dict[int, list[str]]] = None
         self.drone_count = 0
         self.hub_states: dict[int, dict[str, int]] = {}
+        self.link_states: dict[int, dict[tuple[str, str], int]] = {}
         self.drone_position: dict[int, tuple[float, float]] = {}
         self.drone_t: dict[int, float] = {}
         self.drone_target: dict[int, HubModel] = {}
@@ -167,6 +169,7 @@ class Visual:
         for hub in self.graph.hubs:
             center_x, center_y = layout.position((hub.x, hub.y))
             circle_radius = 6
+            label_gap = 4
             ver_dst = (mouse_pos[1] - center_y) ** 2
             hor_dst = (mouse_pos[0] - center_x) ** 2
             distance_squared = hor_dst + ver_dst
@@ -180,12 +183,13 @@ class Visual:
                 distance_squared <= radius_squared
                     ):
                 self.display_text(
-                    hub.name, (center_x, center_y - circle_radius),
+                    hub.name,
+                    (center_x, center_y - circle_radius - label_gap),
                     "MB", "white", screen)
 
             self.display_text(
                 self._occupancy_label(hub, turn),
-                (center_x + 10, center_y + circle_radius + 10),
+                (center_x, center_y + circle_radius + label_gap),
                 "MT", "white", screen)
 
     def _hub_color(self, hub: HubModel) -> str | tuple[int, int, int]:
@@ -289,8 +293,11 @@ class Visual:
         """Display the image of a drone at (x, y) coordinates."""
         screen.blit(surface, pos)
 
-    def draw_connections(self, screen: pygame.Surface) -> None:
-        """Draw the connections between hubs."""
+    def draw_connections(
+        self, mouse_pos: tuple[int, int], turn: int,
+        screen: pygame.Surface
+            ) -> None:
+        """Draw connections and show their state when hovered."""
         layout = self._require_layout()
         pg = self._require_pygame()
 
@@ -313,83 +320,3 @@ class Visual:
 
                 pg.draw.line(screen, color, start_pos, target_pos, 1)
                 drawn_lines.append(sorted([start_pos, target_pos]))
-
-
-class Layout:
-    """Compute layout that will be used in Visual class."""
-
-    def __init__(
-        self, graph: Graph, win_width: int,
-        win_height: int, margin: int
-            ) -> None:
-        """Initialize with all informations needed."""
-        self.graph = graph
-        self.win_width = win_width
-        self.win_height = win_height
-        self.margin = margin
-        self.scale = self.compute_scale()
-        self.offset_x, self.offset_y = self.offset()
-
-    def map_bounds(self) -> tuple[int, int, int, int]:
-        """Return the (x, y) values related to the map bounds."""
-        hubs = self.graph.hubs
-        min_x = min(hubs, key=lambda hub: hub.x).x
-        min_y = min(hubs, key=lambda hub: hub.y).y
-        max_x = max(hubs, key=lambda hub: hub.x).x
-        max_y = max(hubs, key=lambda hub: hub.y).y
-
-        return (max_x, min_x, max_y, min_y)
-
-    def canvas_size(self) -> tuple[int, int]:
-        """Get the size of the canvas after adding margins."""
-        return (
-            self.win_width - (self.margin * 2),
-            self.win_height - (self.margin * 2)
-            )
-
-    def offset(self) -> tuple[float, float]:
-        """Return the offsets that will be applied to center coordinates."""
-        graph_width, graph_height = self.graph_size()
-        offset_x = (self.win_width - graph_width) / 2
-        offset_y = (self.win_height - graph_height) / 2
-
-        max_x, min_x, max_y, min_y = self.map_bounds()
-
-        if min_x != 0:
-            offset_x -= min_x * self.scale
-        if min_y != 0:
-            offset_y -= min_y * self.scale
-
-        return offset_x, offset_y
-
-    def compute_scale(self) -> float:
-        """Compute appropriate scale to help the screen to fit the window."""
-        max_x, min_x, max_y, min_y = self.map_bounds()
-        canvas_width, canvas_height = self.canvas_size()
-
-        try:
-            scale_a = canvas_width / (max_x - min_x)
-        except ZeroDivisionError:
-            scale_a = canvas_width
-        try:
-            scale_b = canvas_height / (max_y - min_y)
-        except ZeroDivisionError:
-            scale_b = canvas_height
-
-        return min(scale_a, scale_b)
-
-    def graph_size(self) -> tuple[float, float]:
-        """Return the size of the graph."""
-        max_x, min_x, max_y, min_y = self.map_bounds()
-        scale = self.compute_scale()
-
-        graph_width = (max_x - min_x) * scale
-        graph_height = (max_y - min_y) * scale
-
-        return graph_width, graph_height
-
-    def position(self, pos: tuple[int, int]) -> tuple[float, float]:
-        """Convert x, y coordinates by adding computed scale and offsets."""
-        x = pos[0] * self.scale + self.offset_x
-        y = pos[1] * self.scale + self.offset_y
-        return x, y

@@ -128,7 +128,9 @@ class Engine:
             routes = self.visual.formatted_routes
             assert routes is not None
             if self.frame == 1:
-                print(" ".join(routes[self.turn]))
+                moves = routes[self.turn]
+                if moves:
+                    print(" ".join(moves))
             if not self.paused:
                 self.frame += 1
 
@@ -171,9 +173,11 @@ class Engine:
                     (target_hub.x, target_hub.y)
                 )
 
-            if self.turn < len(routes):
+            if self.turn < len(routes) - 1:
                 self.turn += 1
-                print(" ".join(routes.get(self.turn, [])))
+                moves = routes.get(self.turn, [])
+                if moves:
+                    print(" ".join(moves))
 
         routes = self.visual.formatted_routes
         assert routes is not None
@@ -183,7 +187,8 @@ class Engine:
         assert win_height is not None
 
         self.visual.draw_hubs(mouse_pos, self.turn, self.screen)
-        self.visual.draw_connections(self.screen)
+        self.visual.draw_connections(
+            mouse_pos, self.turn, self.screen)
         self.visual.draw_drones(
             self.screen, self.small_img, self.turn,
             self.frames_per_turn, self.previous_frame, self.frame)
@@ -199,4 +204,4 @@ class Engine:
             2
         )
         self.visual.simulation_text(
-            self.turn, len(routes), self.screen)
+            self.turn, len(routes) - 1, self.screen)

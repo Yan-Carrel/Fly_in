@@ -123,7 +123,8 @@ fly_in/
 ├── graph_pac/          # Graph model, rendering, and the pygame engine
 │   ├── engine.py        # Main loop, turn/frame timing
 │   ├── graph_cls.py      # Graph built from the parsed map
-│   └── visual.py         # Hub/drone/connection rendering, Layout
+│   ├── layout.py         # Coordinate scaling and screen transformation
+│   └── visual.py         # Hub/drone/connection rendering
 ├── parser/              # Map file parsing and validation
 │   ├── models.py         # Pydantic models: HubModel, ConnectionModel, MapModel
 │   └── parser.py         # Reads and validates a map file into a MapModel
@@ -136,7 +137,7 @@ fly_in/
 ├── route.py              # Turn-by-turn scheduling, capacity checks, formatting
 ├── fly_in.py             # Entry point
 ├── drone.png             # Drone sprite used by the visualization
-├── .env / env.example    # Runtime configuration (window size, colors, ...)
+├── .env / env.example    # Runtime configuration (map, display, colors)
 ├── requirements.txt
 └── Makefile
 ```
@@ -163,8 +164,16 @@ Relevant variables:
 |----------|---------|
 | `MAP` | Default map file used when no map is provided. |
 | `FULLSCREEN` | `TRUE` to run in fullscreen mode, `FALSE` to use a windowed display. |
-| `FRAMES_PER_TURN` | Number of animation frames used to display a single simulation turn. |
 | `BACKGROUND` | Background color of the visualization (any valid web color name). |
+
+Animation speed is a developer option rather than environment configuration:
+
+```bash
+python3 fly_in.py MAP=maps/easy/01_linear_path.txt --frames-per-turn 300
+```
+
+The map can be supplied as a plain path or with the `MAP=` prefix. The
+`--show-all` option displays all hub and connection labels at startup.
 
 ### Makefile targets
 
@@ -178,11 +187,12 @@ make clean        # remove __pycache__, .mypy_cache, etc.
 
 ### Running against a specific map
 
-The simulation must be run through `make run`, passing the map file via the
-`MAP` variable:
+The simulation can be run directly or through the Makefile:
 
 ```bash
 make run MAP=maps/medium/01_dead_end_trap.txt
+
+python3 fly_in.py MAP=maps/medium/01_dead_end_trap.txt
 ```
 
 If `MAP` is omitted, the map defined by `MAP` in `.env` is used instead.
@@ -228,6 +238,7 @@ In the graphical visualization:
 |-----|--------|
 | `Esc` | Exit the simulation. |
 | `T` | Show/hide hub's labels. |
+| `P` | Pause/resume the simulation. |
 
 ## Algorithm choices and implementation strategy
 
@@ -296,7 +307,9 @@ The simulation renders live with `pygame`, driven by `graph_pac/engine.py`
   live `current/max` occupancy count for the active turn.
 - **Connections** are drawn as lines between hubs, colored red when they
   lead into a `restricted` zone, to make movement-cost zones visually
-  obvious at a glance.
+  obvious at a glance. Hovering over a connection displays its live
+  `current/max_link_capacity` occupancy; `--show-all` keeps these labels
+  visible.
 - **Drones** are drawn as sprites that move with a smooth linear
   interpolation between their origin and current target hub, spread across
   the correct number of frames for the move's real turn cost (one turn for
@@ -306,10 +319,12 @@ The simulation renders live with `pygame`, driven by `graph_pac/engine.py`
   label once it settles into a hub shared with others, avoiding label
   clutter when many drones converge.
 - **Statistics overlay** shows the current turn out of the total, number of
-  drones currently moving, total accumulated path cost, and the average
-  turn at which drones reach the goal — giving an at-a-glance read on how
-  efficient the computed schedule is, alongside the turn-by-turn textual
-  log printed to the terminal.
+  drones currently moving, the sum of each drone's scheduled turns as
+  `total cost`, and the average turn at which drones reach the goal.
+
+Map coordinates use a conventional Cartesian orientation: positive X points
+right and positive Y points up. The visualization converts these coordinates
+to screen positions while preserving that orientation.
 
 Together, the colored zone/connection cues and the smooth per-turn-cost
 drone animation make it easy to see which routing decisions (restricted

@@ -1,11 +1,11 @@
-"""Module related to all pydantic's models."""
+"""Pydantic models used to validate maps, hubs, and connections."""
 import webcolors
 from typing import Any, Optional, Self
 from pydantic import BaseModel, Field, model_validator
 
 
 class HubModel(BaseModel):
-    """Hub model that validate all Hub's related datas."""
+    """Validated hub definition with coordinates and optional metadata."""
 
     name: str = Field(min_length=1)
     x: int = Field(...)
@@ -14,7 +14,7 @@ class HubModel(BaseModel):
 
     @model_validator(mode='after')
     def validade_hub(self) -> Self:
-        """Model validator do a second test by verifiying metadata."""
+        """Validate hub metadata and apply the default capacity."""
         valid_metadatas = ["zone", "color", "max_drones"]
         valid_zones = ["normal", "blocked", "restricted", "priority"]
 
@@ -60,14 +60,14 @@ class HubModel(BaseModel):
 
 
 class ConnectionModel(BaseModel):
-    """Connection model that validate all connection's related datas."""
+    """Validated directed connection with its maximum capacity."""
 
     connection: str = Field(min_length=1)
     metadata: Optional[int] = Field(default=1, le=50)
 
     @model_validator(mode='after')
     def validate_model(self) -> Self:
-        """Model validator do a second test by verifiying metadata."""
+        """Validate the connection format and positive capacity."""
         if "-" not in self.connection:
             raise ValueError(
                 "Error: Invalid format. Usage: "
@@ -89,7 +89,7 @@ class ConnectionModel(BaseModel):
 
 
 class MapModel(BaseModel):
-    """Map model that validate all map's related datas."""
+    """Validated map containing hubs, connections, and drone count."""
 
     drone_count: int = Field(ge=1)
     start_hub: HubModel = Field(...)
@@ -99,7 +99,7 @@ class MapModel(BaseModel):
 
     @model_validator(mode='after')
     def validate_model(self) -> Self:
-        """Model validator do a second test by verifiying connections."""
+        """Ensure every connection refers to a declared hub."""
         for connection in self.connections:
             name1, name2 = connection.connection.split("-")
             if not any(name1 == hub.name for hub in self.hubs):

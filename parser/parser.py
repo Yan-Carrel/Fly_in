@@ -7,10 +7,10 @@ import sys
 
 
 class MapParser:
-    """Class that hold all parsing functions."""
+    """Parse and validate a map file before simulation begins."""
 
     def __init__(self, filename: str | None) -> None:
-        """Initialize the class with all needed elements."""
+        """Initialize the parser for ``filename``."""
         if filename is None:
             print("Error: no map filename provided")
             sys.exit(0)
@@ -31,7 +31,7 @@ class MapParser:
         sys.exit(0)
 
     def parse(self) -> MapModel:
-        """Act as a function responsible for parsing all datas from map."""
+        """Read the file and return its validated map model."""
         try:
             with open(self.filename, "r") as file:
                 lines = file.read().splitlines()
@@ -69,10 +69,12 @@ class MapParser:
 
             else:
                 if not found_nb_drones:
-                    self._fail(f"Error, the first configuration must"
-                    " be 'nb_drones'")
+                    self._fail(
+                        "Error, first configuration must be "
+                        "'nb_drones'")
                 else:
-                    self._fail(f"Error, invalid line format: '{line}'", line_no)
+                    self._fail(
+                        f"Error, invalid line format: '{line}'", line_no)
 
         self.parse_hub(hubs)
         self.parse_connections(connections)
@@ -110,7 +112,7 @@ class MapParser:
             self._fail(e.errors()[0]['msg'])
 
     def parse_hub(self, hubs: list[tuple[int, str, str]]) -> None:
-        """Parse name, x and y coordinates and metadata."""
+        """Parse hub declarations, coordinates, and metadata."""
         for line_no, hub_type, value in hubs:
             parts = value.strip().split()
             if len(parts) < 3:

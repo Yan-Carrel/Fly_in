@@ -1,21 +1,21 @@
-"""Module responsible for solving and finding paths."""
+"""Find valid routes through the parsed drone network."""
 from collections import deque
 from graph_pac import Graph
 from parser import HubModel
 
 
 class Solver:
-    """Class that find single valid path or few valid paths."""
+    """Find a primary route and alternatives through graph junctions."""
 
     def __init__(self, graph: Graph) -> None:
-        """Initialize the 'Solver' class."""
+        """Initialize a solver for the supplied graph."""
         self.graph = graph
         self.start = next(
             hub for hub in self.graph.hubs if hub.name == "start")
         self.paths: list[str] = []
 
     def find_path(self, start: HubModel, visited: set[str]) -> list[str]:
-        """Find path be reading graph and using BFS algorithm."""
+        """Find a path from ``start`` to the graph's end hub using BFS."""
         goal = getattr(self.graph, "end_hub", None)
         if goal is None:
             goal = next(
@@ -53,7 +53,7 @@ class Solver:
     def get_neighbors(
         self, hub: HubModel, visited: set[str]
             ) -> list[HubModel]:
-        """Get hubs connected to hub by reading connections in graph."""
+        """Return unvisited, allowed hubs directly reachable from ``hub``."""
         connections = self.graph.connections.get(hub.name, [])
         neighbors = [
             neighbor
@@ -74,7 +74,7 @@ class Solver:
         return result
 
     def get_all_paths(self) -> list[list[str]]:
-        """Find all available paths that can be used to reach goal."""
+        """Find the main route and alternatives through available junctions."""
         main_path = self.find_path(self.start, set())
         junctions = self.get_junctions()
         paths: list[list[str]] = []
@@ -97,7 +97,7 @@ class Solver:
         return paths
 
     def get_junctions(self) -> list[str]:
-        """Find all junctions or hubs that are connected to many hubs."""
+        """Return hubs with more than one outgoing connection."""
         result = []
         for hub in self.graph.hubs:
             connections = self.graph.connections.get(hub.name, [])
