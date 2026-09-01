@@ -44,13 +44,23 @@ class MapParser:
         self.end_hub = None
 
         found_nb_drones = False
+        first_configuration = True
         for line_no, line in enumerate(lines, start=1):
             if "  " in line:
                 self._fail(f"Error, too many spaces in line: {line}", line_no)
             line = line.strip()
             if not line or line.startswith("#"):
                 continue
+            if first_configuration and not line.startswith("nb_drones: "):
+                self._fail(
+                    "Error, the first configuration must be "
+                    "'nb_drones'", line_no)
+            first_configuration = False
             if line.startswith("nb_drones: "):
+                if found_nb_drones:
+                    self._fail(
+                        "Error, 'nb_drones' can only be defined once",
+                        line_no)
                 found_nb_drones = True
                 try:
                     self.drone_count = int(line.split(':')[1])
@@ -81,7 +91,24 @@ class MapParser:
 
         hub_names = {hub.name for hub in self.hubs}
         for line_no, connection in connections:
-            name1, name2 = connection.split(" ")[0].split("-")
+            connection_names = connection.split(" ")[0].split("-")
+            if len(connection_names) != 2:
+                self._fail(
+                    f"Error: invalid connection format '{connection}'",
+                    line_no)
+            name1, name2 = connection_names
+            previously_defined = {
+                hub_value.strip().split()[0]
+                for hub_line, _, hub_value in hubs if hub_line < line_no
+            }
+            if name1 not in previously_defined:
+                self._fail(
+                    f"Hub with name '{name1}' must be defined before "
+                    "the connection", line_no)
+            if name2 not in previously_defined:
+                self._fail(
+                    f"Hub with name '{name2}' must be defined before "
+                    "the connection", line_no)
             if name1 not in hub_names:
                 self._fail(
                     f"Hub with name '{name1}' is not recognized",
@@ -138,10 +165,10 @@ class MapParser:
                     "Error, x and/or y are missings or invalids: "
                     f"'{' '.join(parts)}'", line_no)
 
-            if x > 30 or x < -30 or y > 30 or y < -30:
+            if "-" in name or any(character.isspace() for character in name):
                 self._fail(
-                    "Error, x and y coordinates might exceed the limits",
-                    line_no)
+                    f"Error: invalid hub name '{name}'; names cannot contain "
+                    "dashes or spaces", line_no)
             metadata: dict[str, Any] = {}
             if len(parts) >= 4:
                 metadata_text = " ".join(parts[3:])
@@ -184,12 +211,19 @@ class MapParser:
                 max_drones = metadata.get("max_drones", None)
                 if not max_drones:
                     metadata["max_drones"] = self.drone_count
-                elif int(max_drones) < self.drone_count:
-                    self._fail(
-                        "Error, the 'max_drones' value can't be less "
-                        "than the total number of drones in "
-                        "starting and ending hubs.",
-                        line_no)
+                else:
+                    try:
+                        max_drones_value = int(max_drones)
+                    except (TypeError, ValueError):
+                        self._fail(
+                            "Error, 'max_drones' must be a positive integer",
+                            line_no)
+                    if max_drones_value < self.drone_count:
+                        self._fail(
+                            "Error, the 'max_drones' value can't be less "
+                            "than the total number of drones in "
+                            "starting and ending hubs.",
+                            line_no)
             elif len(parts) == 3:
                 metadata = {"max_drones": 1}
 
@@ -210,15 +244,6 @@ class MapParser:
                         self._fail(
                             "Error: multiple end_hub definitions", line_no)
                     self.end_hub = new_hub
-                if any(
-                    [
-                        True for h in self.hubs if new_hub.x == h.x and
-                        new_hub.y == h.y and h != new_hub]
-                            ):
-                    self._fail(
-                        "Error, two different hubs "
-                        "cannot have the same coordinates",
-                        line_no)
             except ValidationError as e:
                 self._fail(e.errors()[0]['msg'], line_no)
 
@@ -233,7 +258,8 @@ class MapParser:
 
             if sorted(connec_parts[0].split("-")) in connections_found:
                 self._fail(
-                    f"Error, connection '{connec_parts[0]}' already exists."
+                    f"Error, connection '{connec_parts[0]}' already exists.",
+                    line_no
                 )
             else:
                 connections_found.append(sorted(connec_parts[0].split("-")))

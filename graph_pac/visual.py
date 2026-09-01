@@ -196,7 +196,15 @@ class Visual:
         """Return the hub's display color, resolving 'rainbow' color issue."""
         metadata = hub.metadata or {}
         color = metadata.get("color", "white")
-        return (255, 127, 80) if color == "rainbow" else color
+        if not isinstance(color, str):
+            return "white"
+        if color == "rainbow":
+            return (255, 127, 80)
+        try:
+            pygame.Color(color)
+        except (TypeError, ValueError):
+            return "white"
+        return color
 
     def _occupancy_label(self, hub: HubModel, turn: int) -> str:
         """Return a 'current/max' occupancy string at the given turn."""

@@ -38,7 +38,7 @@ Each map specifies:
 - The number of drones.
 - A single start hub and a single end hub.
 - Intermediate hubs.
-- Directed connections between hubs.
+- Bidirectional connections between hubs.
 - Optional metadata for both hubs and connections.
 
 A valid map file looks like this:

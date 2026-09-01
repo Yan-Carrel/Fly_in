@@ -3,7 +3,7 @@ from parser import MapModel, HubModel
 
 
 class Graph:
-    """Represent validated hubs and directed connection capacities."""
+    """Represent validated hubs and bidirectional connection capacities."""
 
     def __init__(self, _map: MapModel) -> None:
         """Build graph indexes from a validated map model."""
@@ -24,6 +24,12 @@ class Graph:
                 self.connections[name1].append(name2)
             capacity = connection.metadata
             self.connection_capacities[(name1, name2)] = (
+                capacity if capacity is not None else 100)
+            if name2 not in self.connections:
+                self.connections[name2] = []
+            if name1 not in self.connections[name2]:
+                self.connections[name2].append(name1)
+            self.connection_capacities[(name2, name1)] = (
                 capacity if capacity is not None else 100)
 
     def get_hub(self, name: str) -> HubModel:

@@ -1,5 +1,4 @@
 """Pydantic models used to validate maps, hubs, and connections."""
-import webcolors
 from typing import Any, Optional, Self
 from pydantic import BaseModel, Field, model_validator
 
@@ -35,14 +34,12 @@ class HubModel(BaseModel):
                         )
 
                 elif key == "color":
-                    try:
-                        webcolors.name_to_hex(value)
-                    except ValueError:
-                        if value != "rainbow":
-                            raise ValueError(
-                                f"{value} is not a valid "
-                                "standard web color name"
-                                )
+                    if not isinstance(value, str) or not value or \
+                            any(character.isspace() for character in value):
+                        raise ValueError(
+                            "Error: color must be a non-empty single-word "
+                            "value"
+                        )
 
                 elif key == "max_drones":
                     try:
@@ -63,7 +60,7 @@ class ConnectionModel(BaseModel):
     """Validated directed connection with its maximum capacity."""
 
     connection: str = Field(min_length=1)
-    metadata: Optional[int] = Field(default=1, le=50)
+    metadata: Optional[int] = Field(default=1)
 
     @model_validator(mode='after')
     def validate_model(self) -> Self:
