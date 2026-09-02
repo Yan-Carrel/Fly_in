@@ -57,7 +57,7 @@ class HubModel(BaseModel):
 
 
 class ConnectionModel(BaseModel):
-    """Validated directed connection with its maximum capacity."""
+    """Validated connection with its maximum traversal capacity."""
 
     connection: str = Field(min_length=1)
     metadata: Optional[int] = Field(default=1)

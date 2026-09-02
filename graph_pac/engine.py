@@ -128,7 +128,7 @@ class Engine:
             routes = self.visual.formatted_routes
             assert routes is not None
             if self.frame == 1:
-                moves = routes[self.turn]
+                moves = routes.get(self.turn, [])
                 if moves:
                     print(" ".join(moves))
             if not self.paused:
@@ -147,15 +147,16 @@ class Engine:
         before incrementing ``self.turn``. Drawing always happens every
         frame regardless of whether a turn boundary was crossed.
         """
+        routes = self.visual.formatted_routes
+        assert routes is not None
+        final_turn = max(routes, default=self.turn)
+
         if self.frame == self.previous_frame + self.frames_per_turn:
             self.previous_frame = self.frame
 
             visual = self.visual
             layout = visual.layout
             assert layout is not None
-            routes = visual.formatted_routes
-            assert routes is not None
-
             for i in range(1, visual.drone_count + 1):
                 if visual.drone_finished_move[i]:
                     continue
@@ -173,14 +174,12 @@ class Engine:
                     (target_hub.x, target_hub.y)
                 )
 
-            if self.turn < len(routes) - 1:
+            if self.turn < final_turn:
                 self.turn += 1
                 moves = routes.get(self.turn, [])
                 if moves:
                     print(" ".join(moves))
 
-        routes = self.visual.formatted_routes
-        assert routes is not None
         win_width = self.visual.win_width
         win_height = self.visual.win_height
         assert win_width is not None
@@ -204,4 +203,4 @@ class Engine:
             2
         )
         self.visual.simulation_text(
-            self.turn, len(routes) - 1, self.screen)
+            self.turn, final_turn, self.screen)

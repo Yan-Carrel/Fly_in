@@ -18,7 +18,7 @@ class Route:
         self.drones_path: list[list[str]] = []
         self.hub_states: dict[int, dict[str, int]] = {}
         self.link_states: dict[int, dict[tuple[str, str], int]] = {}
-        self.hub_states[0] = {"start": drones_count}
+        self.hub_states[0] = {graph.start_hub.name: drones_count}
         self.drones_count = drones_count
 
     def convert_to_int(self, value: object) -> int:
@@ -35,15 +35,13 @@ class Route:
         return 1
 
     def compute_route(
-        self, drone: str, path: list[str]
+        self, path: list[str]
             ) -> tuple[
                 dict[int, dict[str, int]],
                 dict[int, dict[tuple[str, str], int]],
-                list[str],
                 list[str]]:
-        """Schedule one drone and return updated route states."""
+        """Schedule one path and return states plus its raw route."""
         raw_path = [path[0]]
-        formatted_path = [f"{drone}-{path[0]}"]
         hub_states = copy.deepcopy(self.hub_states)
         link_states = copy.deepcopy(self.link_states)
 
@@ -67,14 +65,6 @@ class Route:
                     hub_states, link_states, turn, arrival_turn,
                     previous_hub, current_hub)
                 raw_path.append(current_hub.name)
-
-                if hop_cost == 2:
-                    formatted_path.append(
-                        f"{drone}-{previous_hub.name}-{current_hub.name}")
-                    formatted_path.append(f"{drone}-{current_hub.name}")
-                else:
-                    formatted_path.append(f"{drone}-{current_hub.name}")
-
                 i += 1
                 turn += hop_cost
             else:
@@ -84,11 +74,10 @@ class Route:
                         link_states, turn, incoming_hub.name,
                         previous_hub.name)
                 raw_path.append("")
-                formatted_path.append("")
                 turn += 1
 
             self._normalize_hub_states(hub_states)
-        return hub_states, link_states, raw_path, formatted_path
+        return hub_states, link_states, raw_path
 
     def _ensure_turn_exists(
         self, hub_states: dict[int, dict[str, int]],
@@ -191,7 +180,7 @@ class Route:
         """Choose the shortest path, favoring priority-zone hubs on ties."""
         results = []
         for path in paths:
-            results.append(self.compute_route(drone, path))
+            results.append(self.compute_route(path))
 
         best_path = min(
             results,
@@ -201,25 +190,45 @@ class Route:
             ),
         )
 
-        self.drones_path.append(best_path[3])
+        self.drones_path.append(best_path[2])
         self.hub_states = best_path[0]
         self.link_states = best_path[1]
-        return best_path[3]
+        return best_path[2]
 
-    def build_turn_routes(self) -> dict[int, list[str]]:
-        """Pivot per-drone formatted paths into turn-indexed move lists."""
+    def formatted_routes(self) -> dict[int, list[str]]:
+        """Format raw drone paths as turn-indexed movement strings."""
         if not self.drones_path:
             return {}
-        max_len = max(len(p) for p in self.drones_path)
         turn_routes: dict[int, list[str]] = {}
-        for turn in range(max_len):
-            moves = [
-                drone_path[turn]
-                for drone_path in self.drones_path
-                if turn < len(drone_path) and drone_path[turn]
-            ]
-            turn_routes[turn] = moves
+        for drone_index, drone_path in enumerate(self.drones_path):
+            turn_offset = 0
+            for path_index in range(1, len(drone_path)):
+                destination = drone_path[path_index]
+                if not destination:
+                    continue
+
+                turn = path_index + turn_offset
+                previous = next(
+                    (drone_path[index]
+                     for index in range(path_index - 1, -1, -1)
+                     if drone_path[index]),
+                    drone_path[0],
+                )
+                metadata = self.graph.get_hub(destination).metadata or {}
+                if metadata.get("zone") == "restricted":
+                    turn_routes.setdefault(turn, []).append(
+                        f"D{drone_index + 1}-{previous}-{destination}")
+                    turn_routes.setdefault(turn + 1, []).append(
+                        f"D{drone_index + 1}-{destination}")
+                    turn_offset += 1
+                else:
+                    turn_routes.setdefault(turn, []).append(
+                        f"D{drone_index + 1}-{destination}")
         return turn_routes
+
+    def build_turn_routes(self) -> dict[int, list[str]]:
+        """Backward-compatible alias for :meth:`formatted_routes`."""
+        return self.formatted_routes()
 
     def get_path_cost(self, path: list[str]) -> int:
         """Compute cost of path based on the total turns needed."""

@@ -2,7 +2,6 @@
 from parser.models import HubModel, ConnectionModel, MapModel
 from typing import Any, NoReturn
 from pydantic import ValidationError
-from collections import Counter
 import sys
 
 
@@ -46,35 +45,56 @@ class MapParser:
         found_nb_drones = False
         first_configuration = True
         for line_no, line in enumerate(lines, start=1):
-            if "  " in line:
-                self._fail(f"Error, too many spaces in line: {line}", line_no)
             line = line.strip()
             if not line or line.startswith("#"):
                 continue
-            if first_configuration and not line.startswith("nb_drones: "):
+            if "  " in line or "\t" in line:
+                self._fail(
+                    f"Error: use single spaces only in line '{line}'",
+                    line_no)
+            if first_configuration and not line.startswith("nb_drones:"):
                 self._fail(
                     "Error, the first configuration must be "
                     "'nb_drones'", line_no)
             first_configuration = False
-            if line.startswith("nb_drones: "):
+            if line.startswith("nb_drones:"):
                 if found_nb_drones:
                     self._fail(
                         "Error, 'nb_drones' can only be defined once",
                         line_no)
                 found_nb_drones = True
+                value = line.removeprefix("nb_drones:")
+                if not value.startswith(" ") or len(value.split()) != 1:
+                    self._fail(
+                        "Error: expected 'nb_drones: <positive_integer>'",
+                        line_no)
                 try:
-                    self.drone_count = int(line.split(':')[1])
+                    self.drone_count = int(value.strip())
                 except ValueError:
                     self._fail(
-                        f"Error, invalid line format: '{line}'.\n", line_no)
-            elif line.startswith("connection: ") and found_nb_drones:
-                hub_line = line.split(':')[1].strip()
+                        "Error: nb_drones must be a positive integer",
+                        line_no)
+                if self.drone_count <= 0:
+                    self._fail(
+                        "Error: nb_drones must be a positive integer",
+                        line_no)
+            elif line.startswith("connection:") and found_nb_drones:
+                hub_line = line.removeprefix("connection:")
+                if not hub_line.startswith(" "):
+                    self._fail(
+                        "Error: expected 'connection: <zone1>-<zone2>'",
+                        line_no)
+                hub_line = hub_line.strip()
                 connections.append((line_no, hub_line))
             elif (
-                    line.startswith("hub: ") or
-                    line.startswith("start_hub: ") or
-                    line.startswith("end_hub: ")) and found_nb_drones:
-                key, value = line.split(':')
+                    line.startswith("hub:") or
+                    line.startswith("start_hub:") or
+                    line.startswith("end_hub:")) and found_nb_drones:
+                key, value = line.split(':', 1)
+                if not value.startswith(" "):
+                    self._fail(
+                        f"Error: expected '{key}: <name> <x> <y> '",
+                        line_no)
                 hubs.append((line_no, key, value))
 
             else:
@@ -141,7 +161,8 @@ class MapParser:
     def parse_hub(self, hubs: list[tuple[int, str, str]]) -> None:
         """Parse hub declarations, coordinates, and metadata."""
         for line_no, hub_type, value in hubs:
-            parts = value.strip().split()
+            stripped_value = value.strip()
+            parts = stripped_value.split()
             if len(parts) < 3:
                 self._fail(
                     f"Error: invalid hub format for '{value}'. "
@@ -171,25 +192,22 @@ class MapParser:
                     "dashes or spaces", line_no)
             metadata: dict[str, Any] = {}
             if len(parts) >= 4:
-                metadata_text = " ".join(parts[3:])
+                metadata_text = stripped_value.split(None, 3)[3]
                 if (
                     not metadata_text.startswith("[")
                     or not metadata_text.endswith("]")
+                    or metadata_text.count("[") != 1
+                    or metadata_text.count("]") != 1
+                    or not metadata_text[1:-1].strip()
+                    or metadata_text[1] == " "
+                    or metadata_text[-2] == " "
+                    or "  " in metadata_text
+                    or "\t" in metadata_text
                         ):
                     self._fail(
-                        "Error, invalid metadata: "
-                        f"'{metadata_text}'",
+                        "Error: metadata must be one valid '[key=value ...]' "
+                        f"block, got '{metadata_text}'",
                         line_no)
-                count = Counter(metadata_text)
-                if (
-                    count["zone="] > 1 or count["max_link_capacity="] > 1
-                    or count["color="] > 1 or count["maxdrones="] > 1
-                        ):
-                    self._fail(
-                        "Error, cannot define the same metadata"
-                        f" twice: {metadata_text}",
-                        line_no)
-
                 metadata_items = metadata_text[1:-1].split()
                 meta_keys = []
                 for meta in metadata_items:
@@ -198,6 +216,10 @@ class MapParser:
                     except ValueError:
                         self._fail(
                             "Error: metadata should be in 'key=value' format",
+                            line_no)
+                    if not meta_key or not meta_value:
+                        self._fail(
+                            "Error: metadata keys and values cannot be empty",
                             line_no)
                     if meta_key in meta_keys:
                         self._fail(
@@ -230,6 +252,13 @@ class MapParser:
             if any(existing_hub.name == name for existing_hub in self.hubs):
                 self._fail(f"Error: hub '{name}' is already defined", line_no)
 
+            if any(
+                    existing_hub.x == x and existing_hub.y == y
+                    for existing_hub in self.hubs):
+                self._fail(
+                    f"Error: coordinates ({x}, {y}) are already used by "
+                    "another hub", line_no)
+
             try:
                 new_hub = HubModel(
                     name=name, x=x, y=y, metadata=metadata)
@@ -254,7 +283,11 @@ class MapParser:
         """
         connections_found = []
         for line_no, connection in connections:
-            connec_parts = connection.strip().split()
+            stripped_connection = connection.strip()
+            connec_parts = stripped_connection.split(None, 1)
+
+            if not connec_parts:
+                self._fail("Error: connection cannot be empty", line_no)
 
             if sorted(connec_parts[0].split("-")) in connections_found:
                 self._fail(
@@ -271,11 +304,18 @@ class MapParser:
                 if (
                     not raw_metadata.startswith("[")
                     or not raw_metadata.endswith("]")
+                    or raw_metadata.count("[") != 1
+                    or raw_metadata.count("]") != 1
+                    or not raw_metadata[1:-1].strip()
+                    or raw_metadata[1] == " "
+                    or raw_metadata[-2] == " "
+                    or "  " in raw_metadata
+                    or "\t" in raw_metadata
                         ):
 
                     self._fail(
-                        "Error, metadata should be in 'key=value'"
-                        f" format: {connec_parts}",
+                        "Error: connection metadata must be one valid "
+                        f"'[key=value]' block: {connec_parts}",
                         line_no)
                 raw_metadata = raw_metadata[1:-1]
 

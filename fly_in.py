@@ -60,7 +60,7 @@ if __name__ == "__main__":
                 route.best_path(f"D{i}", paths)
 
             visual.drone_count = map_parser.drone_count
-            visual.formatted_routes = route.build_turn_routes()
+            visual.formatted_routes = route.formatted_routes()
             visual.hub_states = route.hub_states
             visual.link_states = route.link_states
             visual.total_cost = route.total_cost()
