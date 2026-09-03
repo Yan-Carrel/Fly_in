@@ -82,16 +82,22 @@ class Solver:
 
         for junction in junctions:
             junction_children = self.graph.connections[junction]
-            used_children = {
-                c for c in junction_children
-                if any(c in path for path in paths)}
-            unused_children = [
-                c for c in junction_children if c not in used_children]
-
-            for child in unused_children:
-                visited = used_children | (set(unused_children) - {child})
-                path = self.find_path(self.start, visited)
-                if path:
+            junction_path = next(
+                (path for path in paths if junction in path), [])
+            if not junction_path:
+                continue
+            junction_index = junction_path.index(junction)
+            parent = (
+                junction_path[junction_index - 1]
+                if junction_index > 0 else None
+            )
+            for child in junction_children:
+                excluded_children = {
+                    candidate for candidate in junction_children
+                    if candidate != child and candidate != parent
+                }
+                path = self.find_path(self.start, excluded_children)
+                if path and path not in paths:
                     paths.append(path)
 
         return paths

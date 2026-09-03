@@ -258,7 +258,11 @@ class Route:
 
     def total_cost(self) -> int:
         """Return the sum of turns used by all scheduled drones."""
-        return sum(len(path) - 1 for path in self.drones_path)
+        formatted_routes = self.formatted_routes()
+        count = 0
+        for turn in formatted_routes:
+            count += len(formatted_routes[turn])
+        return count
 
     def average_turn(self) -> float:
         """Return the average turn on which drones reach the goal."""

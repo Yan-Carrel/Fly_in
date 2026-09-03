@@ -6,10 +6,10 @@ install:
 	$(VENV_BIN)/pip install -r requirements.txt
 
 run:
-	PYGAME_HIDE_SUPPORT_PROMPT=1 $(VENV_BIN)/python3 fly_in.py $(MAP)
+	PYGAME_HIDE_SUPPORT_PROMPT=1 $(VENV_BIN)/python3 fly_in.py $(if $(MAP),MAP=$(MAP),)
 
 debug:
-	$(VENV_BIN)/python3 -m pdb fly_in.py $(MAP)
+	$(VENV_BIN)/python3 -m pdb fly_in.py $(if $(MAP),MAP=$(MAP),)
 
 clean:
 	rm -rf __pycache__ .mypy_cache .pytest_cache graph_pac/.mypy_cache

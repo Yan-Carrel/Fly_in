@@ -2,7 +2,7 @@
 from parser.models import HubModel, ConnectionModel, MapModel
 from typing import Any, NoReturn
 from pydantic import ValidationError
-import sys
+from parser.errors import ParseError
 
 
 class MapParser:
@@ -11,8 +11,7 @@ class MapParser:
     def __init__(self, filename: str | None) -> None:
         """Initialize the parser for ``filename``."""
         if filename is None:
-            print("Error: no map filename provided")
-            sys.exit(0)
+            raise ParseError("Error: no map filename provided")
 
         self.drone_count = 0
         self.filename: str = filename
@@ -23,11 +22,7 @@ class MapParser:
 
     def _fail(self, message: str, line_no: int | None = None) -> NoReturn:
         """Print an error message, optionally annotated with a line number."""
-        if line_no is None:
-            print(message)
-        else:
-            print(f"Error on line {line_no}: {message}")
-        sys.exit(0)
+        raise ParseError(message, line_no)
 
     def parse(self) -> MapModel:
         """Read the file and return its validated map model."""
@@ -45,6 +40,10 @@ class MapParser:
         found_nb_drones = False
         first_configuration = True
         for line_no, line in enumerate(lines, start=1):
+            if line and line != line.lstrip():
+                self._fail(
+                    "Error: lines must not start with spaces or tabs",
+                    line_no)
             line = line.strip()
             if not line or line.startswith("#"):
                 continue
@@ -251,13 +250,6 @@ class MapParser:
 
             if any(existing_hub.name == name for existing_hub in self.hubs):
                 self._fail(f"Error: hub '{name}' is already defined", line_no)
-
-            if any(
-                    existing_hub.x == x and existing_hub.y == y
-                    for existing_hub in self.hubs):
-                self._fail(
-                    f"Error: coordinates ({x}, {y}) are already used by "
-                    "another hub", line_no)
 
             try:
                 new_hub = HubModel(

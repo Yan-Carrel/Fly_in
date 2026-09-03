@@ -74,7 +74,7 @@ end_hub: <name> <x> <y> [metadata]
 where:
 
 - `<name>` is the unique hub identifier.
-- `<x>` and `<y>` are the hub coordinates used by the visualization.
+- `<x>` and `<y>` are integer hub coordinates used by the visualization.
 - `[metadata]` is optional and may contain:
   - `color`
   - `zone` (`normal`, `priority`, `restricted`, or `blocked`)
@@ -166,14 +166,8 @@ Relevant variables:
 | `FULLSCREEN` | `TRUE` to run in fullscreen mode, `FALSE` to use a windowed display. |
 | `BACKGROUND` | Background color of the visualization (any valid web color name). |
 
-Animation speed is a developer option rather than environment configuration:
-
-```bash
-python3 fly_in.py MAP=maps/easy/01_linear_path.txt --frames-per-turn 300
-```
-
-The map can be supplied as a plain path or with the `MAP=` prefix. The
-`--show-all` option displays all hub and connection labels at startup.
+The map can be selected with the `MAP=` assignment. Display settings are
+read from the dotenv configuration or from environment variables.
 
 ### Makefile targets
 
@@ -193,6 +187,13 @@ The simulation can be run directly or through the Makefile:
 make run MAP=maps/medium/01_dead_end_trap.txt
 
 python3 fly_in.py MAP=maps/medium/01_dead_end_trap.txt
+```
+
+Display settings can be supplied when invoking the Makefile:
+
+```bash
+FULLSCREEN=FALSE BACKGROUND=darkblue make run \
+  MAP=maps/medium/01_dead_end_trap.txt
 ```
 
 If `MAP` is omitted, the map defined by `MAP` in `.env` is used instead.
