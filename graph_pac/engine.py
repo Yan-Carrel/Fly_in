@@ -116,11 +116,11 @@ class Engine:
                 elif event.type == pygame.KEYDOWN:
                     if event.key == pygame.K_ESCAPE:
                         self.running = False
-                    elif event.key == pygame.K_t:
-                        if self.visual.display_all_labels:
-                            self.visual.display_all_labels = False
-                        else:
-                            self.visual.display_all_labels = True
+                    # elif event.key == pygame.K_t:
+                    #     if self.visual.display_all_labels:
+                    #         self.visual.display_all_labels = False
+                    #     else:
+                    #         self.visual.display_all_labels = True
                     elif event.key == pygame.K_p:
                         self.paused = not self.paused
             mouse_pos = pygame.mouse.get_pos()

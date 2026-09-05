@@ -51,6 +51,7 @@ class Visual:
         self.total_cost = 0
         self.average_turn = 0.0
         self.display_all_labels = False
+        self.display_connection_occupancy = False
         self.draw_labels = [
             self.graph.start_hub.name, self.graph.end_hub.name]
 
@@ -215,6 +216,19 @@ class Visual:
         drones_in_hub = self.hub_states.get(turn, {}).get(hub.name, 0)
         return f"{drones_in_hub}/{max_drones}"
 
+    def _connection_occupancy_label(
+        self, start_name: str, end_name: str, turn: int
+            ) -> str:
+        """Return current and maximum occupancy for a connection."""
+        link_state = self.link_states.get(turn, {})
+        occupancy = link_state.get((start_name, end_name), 0)
+        occupancy += link_state.get((end_name, start_name), 0)
+        capacity = self.graph.connection_capacities.get(
+            (start_name, end_name),
+            self.graph.connection_capacities.get((end_name, start_name), "?"),
+        )
+        return f"{occupancy}/{capacity}"
+
     def draw_drones(
         self, screen: pygame.Surface, surface: pygame.Surface, turn: int,
         frames_per_turn: int, previous_frame: int, frame: int
@@ -329,4 +343,13 @@ class Visual:
                     else "white"
 
                 pg.draw.line(screen, color, start_pos, target_pos, 1)
+                if self.display_connection_occupancy:
+                    midpoint = (
+                        (start_pos[0] + target_pos[0]) / 2,
+                        (start_pos[1] + target_pos[1]) / 2,
+                    )
+                    self.display_text(
+                        self._connection_occupancy_label(
+                            key, end_pos, turn),
+                        midpoint, "MT", "white", screen)
                 drawn_lines.append(sorted([start_pos, target_pos]))
