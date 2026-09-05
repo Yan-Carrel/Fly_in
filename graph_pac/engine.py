@@ -38,7 +38,7 @@ class Engine:
         self.visual = visual
         self.frame = 0
         self.previous_frame = 0
-        self.frames_per_turn = 600
+        self.frames_per_turn: int = int(os.getenv("FRAMES_PER_TURN", "600"))
         self.turn = 1
         self.paused = False
 
@@ -84,7 +84,7 @@ class Engine:
         assert layout is not None
 
         for i in range(self.visual.drone_count + 1):
-            start_hub = self.visual.graph.get_hub("start")
+            start_hub = self.visual.graph.start_hub
             self.visual.drone_position[i] = layout.position(
                 (start_hub.x, start_hub.y))
             self.visual.drone_t[i] = 0.0
@@ -129,8 +129,7 @@ class Engine:
             assert routes is not None
             if self.frame == 1:
                 moves = routes.get(self.turn, [])
-                if moves:
-                    print(" ".join(moves))
+                print(" ".join(moves))
             if not self.paused:
                 self.frame += 1
 
@@ -177,8 +176,9 @@ class Engine:
             if self.turn < final_turn:
                 self.turn += 1
                 moves = routes.get(self.turn, [])
-                if moves:
-                    print(" ".join(moves))
+                print(" ".join(moves))
+            elif all(visual.drone_finished_move.values()):
+                self.running = False
 
         win_width = self.visual.win_width
         win_height = self.visual.win_height

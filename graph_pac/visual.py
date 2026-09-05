@@ -1,4 +1,5 @@
 """Rendering layer for the drone simulation."""
+import sys
 from types import ModuleType
 from typing import Optional
 
@@ -203,7 +204,8 @@ class Visual:
         try:
             pygame.Color(color)
         except (TypeError, ValueError):
-            return "white"
+            print(f"Error, invalid color '{color}'")
+            sys.exit(0)
         return color
 
     def _occupancy_label(self, hub: HubModel, turn: int) -> str:

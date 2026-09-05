@@ -251,6 +251,13 @@ class MapParser:
             if any(existing_hub.name == name for existing_hub in self.hubs):
                 self._fail(f"Error: hub '{name}' is already defined", line_no)
 
+            if any(
+                    existing_hub.x == x and existing_hub.y == y
+                    for existing_hub in self.hubs):
+                self._fail(
+                    "Invalid map: some hubs are too close to be displayed "
+                    "clearly.", line_no)
+
             try:
                 new_hub = HubModel(
                     name=name, x=x, y=y, metadata=metadata)

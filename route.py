@@ -231,18 +231,13 @@ class Route:
         return self.formatted_routes()
 
     def get_path_cost(self, path: list[str]) -> int:
-        """Compute cost of path based on the total turns needed."""
+        """Compute scheduled turns, including waits and restricted moves."""
         cost = 0
-        for step in path:
+        for step in path[1:]:
             if not step:
                 cost += 1
-                continue
-            metadata = self.graph.get_hub(step).metadata or {}
-            zone = metadata.get("zone")
-            if zone == "restricted":
-                cost += 2
-            elif zone in (None, "priority", "normal"):
-                cost += 1
+            else:
+                cost += self._hop_cost(self.graph.get_hub(step))
         return cost
 
     def _priority_hub_count(self, path: list[str]) -> int:
@@ -258,11 +253,7 @@ class Route:
 
     def total_cost(self) -> int:
         """Return the sum of turns used by all scheduled drones."""
-        formatted_routes = self.formatted_routes()
-        count = 0
-        for turn in formatted_routes:
-            count += len(formatted_routes[turn])
-        return count
+        return sum(self.get_path_cost(path) for path in self.drones_path)
 
     def average_turn(self) -> float:
         """Return the average turn on which drones reach the goal."""

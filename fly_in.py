@@ -56,5 +56,5 @@ if __name__ == "__main__":
             engine.run()
         else:
             print("Unable to find any valid path")
-    except Exception as e:
+    except (Exception, KeyboardInterrupt) as e:
         print(e)

@@ -11,7 +11,8 @@ class Solver:
         """Initialize a solver for the supplied graph."""
         self.graph = graph
         self.start = next(
-            hub for hub in self.graph.hubs if hub.name == "start")
+            hub for hub in self.graph.hubs
+            if hub.name == graph.start_hub.name)
         self.paths: list[str] = []
 
     def find_path(self, start: HubModel, visited: set[str]) -> list[str]:
@@ -19,7 +20,8 @@ class Solver:
         goal = getattr(self.graph, "end_hub", None)
         if goal is None:
             goal = next(
-                (hub for hub in self.graph.hubs if hub.name == "goal"), None)
+                (hub for hub in self.graph.hubs
+                    if hub.name == self.graph.end_hub.name), None)
         if goal is None:
             return []
 

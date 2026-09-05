@@ -255,14 +255,11 @@ into an adjacency-list graph (`dict[str, list[str]]`) plus a lookup table of
 per-connection capacities, with no external graph library involved, per the
 project constraints.
 
-**Pathfinding.** `algorithm.py`'s `Solver` finds the main shortest path from
+**Pathfinding.** `algorithm.py`'s `Solver` enumerates every simple path from
 `start` to the end hub using breadth-first search, skipping `blocked` zones
-entirely. To give the scheduler alternative routes to spread drones across
-(rather than funneling every drone down the single shortest path), the
-solver additionally identifies every junction (a hub with more than one
-outgoing connection) and computes one extra BFS path per still-unexplored
-branch at each junction — forcing the search away from already-claimed
-branches so that every distinct path through the graph is represented.
+entirely. This gives the scheduler all valid alternatives so `best_path` can
+compare their movement costs and capacity-related waits instead of selecting
+from only the first route found.
 
 **Turn-by-turn scheduling.** `route.py`'s `Route` class is the core of the
 simulation:
@@ -284,11 +281,6 @@ simulation:
   move strings required by the output format (`Di-hub` or `Di-from-to`),
   staggering drones so that later drones' departures don't corrupt earlier
   drones' already-computed schedules.
-- `compute_hub_occupancy` derives, for every turn, exactly how many drones
-  currently occupy each hub — recomputed from each drone's tracked current
-  position rather than accumulated via increment/decrement, which keeps hub
-  counts self-consistent (no drift, no negative counts) across the whole
-  simulation.
 
 **Complexity and performance notes.** Each candidate path is simulated
 independently in `compute_route` (O(path length) per candidate, with a
@@ -309,8 +301,7 @@ The simulation renders live with `pygame`, driven by `graph_pac/engine.py`
 - **Connections** are drawn as lines between hubs, colored red when they
   lead into a `restricted` zone, to make movement-cost zones visually
   obvious at a glance. Hovering over a connection displays its live
-  `current/max_link_capacity` occupancy; `--show-all` keeps these labels
-  visible.
+  `current/max_link_capacity` occupancy.
 - **Drones** are drawn as sprites that move with a smooth linear
   interpolation between their origin and current target hub, spread across
   the correct number of frames for the move's real turn cost (one turn for
