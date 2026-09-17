@@ -186,6 +186,7 @@ The simulation can be run directly or through the Makefile:
 ```bash
 make run MAP=maps/medium/01_dead_end_trap.txt
 
+source venv/bin/activate          #Run this command only once.
 python3 fly_in.py MAP=maps/medium/01_dead_end_trap.txt
 ```
 

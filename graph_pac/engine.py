@@ -1,8 +1,15 @@
 """Pygame engine that drives the turn-based drone simulation loop."""
-import os
-import sys
-import pygame
-from .visual import Visual
+try:
+    import os
+    import sys
+    import pygame
+    from .visual import Visual
+except ModuleNotFoundError:
+    print(
+        "Error, please run the following command"
+        " to activate the virtual environment"
+        "source venv/bin/activate"
+        )
 
 
 class Engine:

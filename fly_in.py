@@ -17,14 +17,18 @@ if __name__ == "__main__":
         load_dotenv()
         map_argument = None
         arguments = sys.argv[1:]
+        show_all = False
         for argument in arguments:
-            if not argument.startswith("MAP="):
-                raise ValueError(
-                    "invalid argument; use MAP=<map_file>"
-                )
-            if map_argument is not None:
+            # if not argument.startswith("MAP="):
+            #     raise ValueError(
+            #         "invalid argument; use MAP=<map_file>"
+            #     )
+            if argument == "show_all":
+                show_all = True
+            if map_argument is not None and argument.startswith("MAP="):
                 raise ValueError("only one MAP argument is allowed")
-            map_argument = argument.removeprefix("MAP=") or None
+            if argument.startswith("MAP="):
+                map_argument = argument.removeprefix("MAP=") or None
         map_filename = map_argument or os.getenv("MAP")
         if not map_filename:
             print("Error: map not found. Please choose a filename in .env")
@@ -33,6 +37,8 @@ if __name__ == "__main__":
 
         graph = graph_pac.Graph(map_parser.parse())
         visual = graph_pac.Visual(graph, 80, 120)
+        visual.display_all_labels = show_all
+        visual.display_connection_occupancy = True
         background = os.getenv("BACKGROUND")
         engine = graph_pac.Engine(background, visual)
 
